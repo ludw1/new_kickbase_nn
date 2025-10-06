@@ -1,12 +1,14 @@
 import json
 
 
-def transform_data(input_file: str) -> list[list[float]]:
+def transform_data(input_file: str) -> tuple[list[list[float]], list[dict]]:
     with open(input_file, "r") as f:
         data = json.load(f)
-    # Expects {PlayerName: {market_value: {"it": [values]}, ...}}
-    # Need to transform it into [[player1_values], [player2_values], ...]
+    # Expects {PlayerName: {player_info: {...}, market_value: {"it": [values]}, ...}}
+    # Need to transform it into [[player1_values], [player2_values], ...] and static covariates
     transformed_data = []
+    static_covariates = []
+
     for player, metrics in data.items():
         player_values = []
         market_values = metrics.get("market_value", {}).get("it", [])
@@ -20,6 +22,19 @@ def transform_data(input_file: str) -> list[list[float]]:
             continue
         elif all(v == 500000 for v in player_values):
             continue
-        # We filter players with less than 365 days of data, only 0 or 500000 values
+        low_price_count = sum(1 for v in player_values if v == 0 or v == 500000)
+        if low_price_count / len(player_values) > 0.3:
+            continue
+
+        # Extract static covariates
+        player_info = metrics.get("player_info", {})
+        static_cov = {
+            "team_id": player_info.get("team_id", 0),
+            "pos": player_info.get("pos", 0)
+        }
+
+        # We filter players with less than 365 days of data, only 0 or 500000 values or more than 30% of such values
         transformed_data.append(player_values)
-    return transformed_data
+        static_covariates.append(static_cov)
+
+    return transformed_data, static_covariates
