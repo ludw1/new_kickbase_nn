@@ -2,7 +2,6 @@
 *.json
 __pycache__/
 *.pyc
-*.logs
-*.log
-
+*.ckpt
 *.pth
+logs/
