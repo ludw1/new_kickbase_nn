@@ -102,6 +102,7 @@ def main():
     if Config.MODEL_TYPE != "linear_regression":
         plt.plot(loss_recorder.train_losses, label="Train Loss")
         plt.plot(loss_recorder.val_losses, label="Validation Loss")
+        plt.yscale("log")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.legend()

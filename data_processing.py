@@ -12,9 +12,13 @@ from darts import TimeSeries
 from sklearn.preprocessing import RobustScaler
 from transform_data import transform_data
 from config import Config
-
+from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
-
+def julian_to_date(julian_date: int) -> str:
+    """Convert a Julian date to a standard date format (YYYY-MM-DD)."""
+    reference_date = datetime(1970, 1, 1)
+    converted_date = reference_date + timedelta(days=julian_date)
+    return converted_date.strftime("%d.%m.%Y")
 
 def load_and_preprocess_data(
     data_file: str = "all_player_data.json",
@@ -25,7 +29,7 @@ def load_and_preprocess_data(
     into train/val/test sets. This allows the model to learn from complete seasonal
     patterns and test generalization to entirely new players.
     """
-    raw_data, static_cov_data = transform_data(data_file)
+    raw_data, static_cov_data, first_date = transform_data(data_file)
     logger.info(f"Processing {len(raw_data)} player time series...")
     # Set random seed for reproducible splits
 
@@ -60,8 +64,19 @@ def load_and_preprocess_data(
         # Use actual values directly (no differencing)
         values = np.array(player_values)
 
-        # Create TimeSeries from actual values
-        series = TimeSeries.from_values(values)
+        # Create a datetime index starting from a reference date
+        # Assuming daily data
+        time_index = pd.date_range(
+            start=julian_to_date(first_date), 
+            periods=len(values), 
+            freq='D'
+        )
+        
+        # Create TimeSeries with datetime index
+        series = TimeSeries.from_times_and_values(
+            times=time_index,
+            values=values
+        )
 
         return series
 

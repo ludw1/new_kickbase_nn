@@ -1,18 +1,19 @@
 import json
 
 
-def transform_data(input_file: str) -> tuple[list[list[float]], list[dict]]:
+def transform_data(input_file: str) -> tuple[list[list[float]], list[dict], int]:
     with open(input_file, "r") as f:
         data = json.load(f)
     # Expects {PlayerName: {player_info: {...}, market_value: {"it": [values]}, ...}}
     # Need to transform it into [[player1_values], [player2_values], ...] and static covariates
     transformed_data = []
     static_covariates = []
-
+    first_date = 19983 # Example Julian date for reference
     for player, metrics in data.items():
         player_values = []
         market_values = metrics.get("market_value", {}).get("it", [])
         if market_values:
+            first_date = min(first_date, market_values[0].get("date", first_date))
             player_values.extend(
                 point.get("mv")
                 for point in market_values
@@ -37,4 +38,4 @@ def transform_data(input_file: str) -> tuple[list[list[float]], list[dict]]:
         transformed_data.append(player_values)
         static_covariates.append(static_cov)
 
-    return transformed_data, static_covariates
+    return transformed_data, static_covariates, first_date

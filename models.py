@@ -8,7 +8,7 @@ from config import Config
 from utils import ModelTracker, LossRecorder
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-
+from darts.dataprocessing.transformers import Scaler
 
 class Models:
     """Container class for all model configurations."""
@@ -211,6 +211,10 @@ class Models:
                 "enable_checkpointing": True,
                 "default_root_dir": self.checkpoint_dir,
             }
+            encoders = {
+                "datetime_attribute": {"future": ["month", "day", "dayofweek"]},
+                "transformer": Scaler()
+            }
             model = TiDEModel(
                 input_chunk_length=self.input_size,
                 output_chunk_length=self.output_size,
@@ -220,7 +224,8 @@ class Models:
                 random_state=self.seed,
                 num_encoder_layers=2,
                 num_decoder_layers=2,
-                hidden_size=32,
+                add_encoders=encoders,
+                hidden_size=128,
                 dropout=0.1,
                 lr_scheduler_cls=ReduceLROnPlateau,
                 lr_scheduler_kwargs={

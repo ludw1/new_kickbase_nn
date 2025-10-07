@@ -12,12 +12,12 @@ class Config:
     TEST_SPLIT = 0.15  # 15% of players for testing
     INPUT_SIZE = 30
     OUTPUT_SIZE = 3
-    NUM_EPOCHS = 20
-    BATCH_SIZE = 300
+    NUM_EPOCHS = 50
+    BATCH_SIZE = 128
     LEARNING_RATE = 0.0001
     WEIGHT_DECAY = 1e-4
     PATIENCE = 10
-    MIN_DELTA = 0.05
+    MIN_DELTA = 1e-4
     SCHEDULER_FACTOR = 0.5
     SCHEDULER_PATIENCE = 5
     CHECKPOINT_DIR = "checkpoints"
