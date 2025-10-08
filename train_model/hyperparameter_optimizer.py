@@ -27,7 +27,7 @@ from datetime import datetime
 import gc
 import torch
 # Import from existing modules
-from train_model.config import Config, OptimizationConfig
+from train_model.config import TrainingConfig as Config, OptimizationConfig
 from train_model.utils import setup_directories, setup_logging
 from train_model.data_processing import load_and_preprocess_data
 from darts.metrics import mae

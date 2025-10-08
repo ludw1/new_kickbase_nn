@@ -6,11 +6,10 @@ Orchestrates the entire training, evaluation, and backtesting process.
 
 import os
 import logging
-import numpy as np
 import matplotlib.pyplot as plt
 
 # Import from new modular structure
-from config import Config
+from config import TrainingConfig as Config
 from models import Models
 from utils import setup_directories, setup_logging
 from data_processing import load_and_preprocess_data
@@ -117,24 +116,8 @@ def main():
     logger.info(f"Final model saved to {final_model_path}")
 
     # Track final model performance and save best model
-    if hasattr(model_tracker, 'update_performance'):
-        # For Linear Regression (sklearn-based), manually evaluate and track performance
-        # All PyTorch Lightning models (NHiTS, NLinear, TiDE) are already tracked during training
-        # via the LossRecorder callback that runs after each validation epoch
-        if Config.MODEL_TYPE == "linear_regression":
-            val_series_with_cov = []
-
-            for i, series in enumerate(val_series):
-                series_with_cov = series.with_static_covariates(val_static_cov[i])
-                val_series_with_cov.append(series_with_cov)
-
-            # Evaluate on validation set (model is already trained, just predict)
-            from darts.metrics import mae as darts_mae
-            val_predictions = model.predict(n=output_size, series=val_series_with_cov)
-            val_mae = float(np.mean(darts_mae(val_series_with_cov, val_predictions)))
-            model_tracker.update_performance(val_mae, 0, final_model_path)
-
-        # Log best model information
+    if Config.MODEL_TYPE != "linear_regression":
+    # Log best model information
         best_info = model_tracker.get_best_model_info()
         if best_info:
             logger.info("\n" + "="*60)
@@ -151,10 +134,10 @@ def main():
             if model_tracker.best_model_path and os.path.exists(model_tracker.best_model_path):
                 # Copy best model to clearly named file
                 shutil.copy2(model_tracker.best_model_path, best_model_path)
-                logger.info(f"✓ Best model saved to: {best_model_path}")
+                logger.info(f"Best model saved to: {best_model_path}")
             else:
                 # If no specific best model was saved during training, use the final model
-                logger.info(f"✓ Using final model as best model: {final_model_path}")
+                logger.info(f"Using final model as best model: {final_model_path}")
 
     logger.info("\n" + "="*60)
     logger.info("TRAINING COMPLETE")

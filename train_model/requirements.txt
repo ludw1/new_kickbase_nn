@@ -3,10 +3,7 @@ darts==0.38.0
 matplotlib==3.8.2
 numpy==2.3.3
 pandas==2.3.3
-pydantic==2.12.0
-python-dotenv==1.1.1
 pytorch_lightning==2.5.2
-Requests==2.32.5
 scikit_learn==1.7.2
 torch==2.8.0+cu128
 

@@ -11,7 +11,7 @@ import pandas as pd
 import logging
 from datetime import datetime
 from pytorch_lightning.callbacks import Callback
-from config import Config
+from config import TrainingConfig as Config
 
 logger = logging.getLogger(__name__)
 

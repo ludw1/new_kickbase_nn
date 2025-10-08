@@ -4,7 +4,7 @@ Model configurations module.
 Contains all model configuration classes and their setup methods.
 """
 
-from config import Config
+from config import TrainingConfig as Config
 from utils import ModelTracker, LossRecorder
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import L1Loss

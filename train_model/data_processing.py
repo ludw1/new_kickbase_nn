@@ -11,7 +11,7 @@ import logging
 from darts import TimeSeries
 from sklearn.preprocessing import RobustScaler
 from transform_data import transform_data
-from config import Config
+from config import TrainingConfig as Config
 from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 def julian_to_date(julian_date: int) -> str:
@@ -149,18 +149,7 @@ def load_and_preprocess_data(
     all_train_values = np.concatenate(
         [s.values() for s in train_series_unscaled]
     )
-
-    logger.info("\nTraining values statistics:")
-    logger.info(f"  Mean: {np.mean(all_train_values):.4f}")
-    logger.info(f"  Std: {np.std(all_train_values):.4f}")
-    logger.info(f"  Median: {np.median(all_train_values):.4f}")
-    logger.info(f"  Min: {np.min(all_train_values):.4f}")
-    logger.info(f"  Max: {np.max(all_train_values):.4f}")
-    logger.info(f"  25th percentile: {np.percentile(all_train_values, 25):.4f}")
-    logger.info(f"  75th percentile: {np.percentile(all_train_values, 75):.4f}")
-    logger.info(f"  99th percentile: {np.percentile(all_train_values, 99):.4f}")
-    logger.info(f"  1st percentile: {np.percentile(all_train_values, 1):.4f}")
-
+    
     # Clip extreme outliers at 1st and 99th percentile
     lower_bound = np.percentile(all_train_values, 1)
     upper_bound = np.percentile(all_train_values, 99)
