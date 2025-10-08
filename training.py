@@ -8,14 +8,12 @@ import os
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from darts.metrics import mae, rmse
 
 # Import from new modular structure
 from config import Config
 from models import Models
 from utils import setup_directories, setup_logging
 from data_processing import load_and_preprocess_data
-from evaluation import run_backtests
 
 logger = logging.getLogger(__name__)
 
@@ -113,53 +111,10 @@ def main():
     else:
         logger.info("Linear Regression doesn't use epoch-based training, skipping loss curves.")
 
-    # Evaluate on test set
-    logger.info("Evaluating on test set...")
-
-    # For proper evaluation, we need to split test series into input and target
-    # The model uses the last input_size points to predict the next output_size points
-    test_inputs = []
-    test_targets = []
-
-    for i, series in enumerate(test_series):
-        # Use everything except the last output_size points as input
-        # Use the last output_size points as target
-        if len(series) >= input_size + output_size:
-            input_series = series[: -output_size]
-            target_series = series[-output_size :]
-
-            # Add static covariates for models that support them
-            if Config.MODEL_TYPE in ["tide", "nlinear", "linear_regression"]:
-                input_series = input_series.with_static_covariates(test_static_cov[i])
-
-            test_inputs.append(input_series)
-            test_targets.append(target_series)
-
-    logger.info(f"Evaluating on {len(test_inputs)} test series...")
-
-    # Predict the next output_size points for each test input
-    test_predictions = model.predict(n=output_size, series=test_inputs)
-    test_inputs[0].plot(label="Test Input")
-    test_targets[0].plot(label="Test Target")
-    test_predictions[0].plot(label="Test Prediction")
-    plt.legend()
-    plt.title("Test Input, Target, and Prediction Example")
-    plt.savefig(os.path.join(Config.LOG_DIR, "training_example.png"))
-
-    # Calculate test metrics by comparing predictions with actual targets
-    test_mae_val = mae(test_targets, test_predictions)
-    test_rmse = rmse(test_targets, test_predictions)
-
-    logger.info("Test Set Metrics:")
-    logger.info(f"  MAE: {np.mean(test_mae_val)}")
-    logger.info(f"  RMSE: {np.mean(test_rmse)}")
-
     # Save the trained model
     final_model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pth")
     model.save(final_model_path)
-    logger.info(
-        f"Final model saved to {final_model_path}"
-    )
+    logger.info(f"Final model saved to {final_model_path}")
 
     # Track final model performance and save best model
     if hasattr(model_tracker, 'update_performance'):
@@ -174,8 +129,9 @@ def main():
                 val_series_with_cov.append(series_with_cov)
 
             # Evaluate on validation set (model is already trained, just predict)
+            from darts.metrics import mae as darts_mae
             val_predictions = model.predict(n=output_size, series=val_series_with_cov)
-            val_mae = float(np.mean(mae(val_series_with_cov, val_predictions)))
+            val_mae = float(np.mean(darts_mae(val_series_with_cov, val_predictions)))
             model_tracker.update_performance(val_mae, 0, final_model_path)
 
         # Log best model information
@@ -190,27 +146,18 @@ def main():
 
             # For PyTorch Lightning models, the best model is saved during training
             # For other models, copy the final model as the best
+            import shutil
             best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pth")
             if model_tracker.best_model_path and os.path.exists(model_tracker.best_model_path):
                 # Copy best model to clearly named file
-                import shutil
                 shutil.copy2(model_tracker.best_model_path, best_model_path)
                 logger.info(f"✓ Best model saved to: {best_model_path}")
             else:
                 # If no specific best model was saved during training, use the final model
                 logger.info(f"✓ Using final model as best model: {final_model_path}")
 
-    logger.info("Training complete.")
-
-    # Run comprehensive backtesting
     logger.info("\n" + "="*60)
-    logger.info("STARTING MODEL BACKTESTING")
-    logger.info("="*60)
-
-    run_backtests(model, train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov, input_size, output_size)
-
-    logger.info("\n" + "="*60)
-    logger.info("FULL PIPELINE COMPLETE - TRAINING + BACKTESTING")
+    logger.info("TRAINING COMPLETE")
     logger.info("="*60)
 
 

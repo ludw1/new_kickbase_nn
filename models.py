@@ -41,7 +41,7 @@ class Models:
             """Setup the model, criterion, and optimizer."""
             from darts.models import NHiTSModel
 
-            model_tracker = ModelTracker("nhits", self.log_dir)
+            model_tracker = ModelTracker("nhits", self.log_dir, self.checkpoint_dir)
             loss_recorder = LossRecorder(model_tracker)
             early_stopper = EarlyStopping(
                 monitor="val_loss",
@@ -75,6 +75,9 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
+            
+            # Set the model reference in the loss recorder so it can save best models
+            loss_recorder.set_darts_model(model)
 
             return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
@@ -103,7 +106,7 @@ class Models:
             """Setup the NLinear model with static covariates support."""
             from darts.models import NLinearModel
 
-            model_tracker = ModelTracker("nlinear", self.log_dir)
+            model_tracker = ModelTracker("nlinear", self.log_dir, self.checkpoint_dir)
             loss_recorder = LossRecorder(model_tracker)
             early_stopper = EarlyStopping(
                 monitor="val_loss",
@@ -135,6 +138,9 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
+            
+            # Set the model reference in the loss recorder so it can save best models
+            loss_recorder.set_darts_model(model)
 
             return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
@@ -164,7 +170,7 @@ class Models:
             """Setup the TiDE model with static covariates support."""
             from darts.models import TiDEModel
 
-            model_tracker = ModelTracker("tide", self.log_dir)
+            model_tracker = ModelTracker("tide", self.log_dir, self.checkpoint_dir)
             loss_recorder = LossRecorder(model_tracker)
             early_stopper = EarlyStopping(
                 monitor="val_loss",
@@ -204,6 +210,9 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
+            
+            # Set the model reference in the loss recorder so it can save best models
+            loss_recorder.set_darts_model(model)
 
             return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
@@ -221,7 +230,7 @@ class Models:
             """Setup the Linear Regression model with static covariates support."""
             from darts.models import LinearRegressionModel
 
-            model_tracker = ModelTracker("linear_regression", self.log_dir)
+            model_tracker = ModelTracker("linear_regression", self.log_dir, Config.CHECKPOINT_DIR)
             model = LinearRegressionModel(
                 lags=self.input_size,
                 output_chunk_length=self.output_size,

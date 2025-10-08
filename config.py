@@ -20,9 +20,9 @@ class Config:
     SCHEDULER_PATIENCE = 5
     CHECKPOINT_DIR = "checkpoints"
     LOG_DIR = "logs"
-    MODEL_NAME = "kickbase_model" + "_{model_type}"
     SEED = 42
     MODEL_TYPE = "tide"  # Options: "nhits", "nlinear", "tft", "tide", "linear_regression"
+    MODEL_NAME = "kickbase_model"
 
 
 # Optimization Configuration

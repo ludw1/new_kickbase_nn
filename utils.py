@@ -19,18 +19,29 @@ logger = logging.getLogger(__name__)
 class ModelTracker:
     """Track and save the best models based on validation performance."""
 
-    def __init__(self, model_type, log_dir="logs"):
+    def __init__(self, model_type, log_dir="logs", checkpoint_dir="checkpoints"):
         self.model_type = model_type
         self.log_dir = log_dir
+        self.checkpoint_dir = checkpoint_dir
         self.best_val_loss = float('inf')
         self.best_model_path = None
         self.tracking_file = os.path.join(log_dir, f"model_performance_{model_type}.csv")
 
         # Initialize tracking CSV
         self.performance_data = []
+        
+        # Ensure checkpoint directory exists
+        os.makedirs(checkpoint_dir, exist_ok=True)
 
-    def update_performance(self, val_loss, epoch, model_path=None):
-        """Update model performance and save if best."""
+    def update_performance(self, val_loss, epoch, model_path=None, model=None):
+        """Update model performance and save if best.
+        
+        Args:
+            val_loss: Validation loss for this epoch
+            epoch: Current epoch number
+            model_path: Optional path where model should be saved
+            model: Optional model object to save (for Darts models with .save() method)
+        """
         performance_entry = {
             'epoch': epoch,
             'val_loss': val_loss,
@@ -42,9 +53,29 @@ class ModelTracker:
 
         if val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            if model_path:
-                self.best_model_path = model_path
-                logger.info(f"New best model saved with val_loss: {val_loss:.4f}")
+            
+            # Generate best model path if not provided
+            if not model_path:
+                model_path = os.path.join(
+                    self.checkpoint_dir, 
+                    f"{self.model_type}_best_epoch_{epoch}.pth"
+                )
+            
+            self.best_model_path = model_path
+            
+            # Actually save the model if provided
+            if model is not None:
+                try:
+                    # Darts models have a .save() method
+                    if hasattr(model, 'save'):
+                        model.save(model_path)
+                        logger.info(f"✓ New best model saved to {model_path} with val_loss: {val_loss:.4f}")
+                    else:
+                        logger.warning("Model object doesn't have a save method, skipping save")
+                except Exception as e:
+                    logger.error(f"Failed to save best model: {e}")
+            else:
+                logger.info(f"New best val_loss: {val_loss:.4f} at epoch {epoch} (model not provided for saving)")
 
         # Save performance tracking
         self._save_performance()
@@ -66,10 +97,11 @@ class ModelTracker:
 class LossRecorder(Callback):
     """Callback to record training and validation losses."""
 
-    def __init__(self, model_tracker=None):
+    def __init__(self, model_tracker=None, darts_model=None):
         self.train_losses = []
         self.val_losses = []
         self.model_tracker = model_tracker
+        self.darts_model = darts_model  # Store reference to the Darts model
 
     def on_train_epoch_end(self, trainer, pl_module):
         self.train_losses.append(trainer.callback_metrics["train_loss"].item())
@@ -82,7 +114,13 @@ class LossRecorder(Callback):
         if self.model_tracker:
             current_epoch = trainer.current_epoch
             model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_epoch_{current_epoch}.pth")
-            self.model_tracker.update_performance(val_loss, current_epoch, model_path)
+            
+            # Pass the Darts model for saving
+            self.model_tracker.update_performance(val_loss, current_epoch, model_path, model=self.darts_model)
+    
+    def set_darts_model(self, darts_model):
+        """Set the Darts model reference after model initialization."""
+        self.darts_model = darts_model
 
 
 class ContinuityLoss(nn.Module):
