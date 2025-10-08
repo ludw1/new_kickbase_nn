@@ -16,10 +16,16 @@ class Models:
 
     class NHiTSModelConfig:
         def __init__(self):
-            self.input_size = Config.INPUT_SIZE
-            self.output_size = Config.OUTPUT_SIZE
-            self.learning_rate = Config.LEARNING_RATE
-            self.weight_decay = Config.WEIGHT_DECAY
+            # Optuna optimized parameters (Trial 13, Val MAE: 0.0093)
+            self.input_size = 10  # input_chunk_length
+            self.output_size = 3  # output_chunk_length
+            self.learning_rate = 0.00023384895140376912
+            self.num_stacks = 2
+            self.num_blocks = 3
+            self.num_layers = 3
+            self.layer_widths = 128
+            self.dropout = 0.1
+            # Config parameters
             self.patience = Config.PATIENCE
             self.min_delta = Config.MIN_DELTA
             self.scheduler_factor = Config.SCHEDULER_FACTOR
@@ -53,68 +59,14 @@ class Models:
                 output_chunk_length=self.output_size,
                 n_epochs=self.n_epochs,
                 batch_size=self.batch_size,
-                num_blocks=2,
-                num_stacks=3,
-                dropout=0.1,
+                num_stacks=self.num_stacks,
+                num_blocks=self.num_blocks,
+                num_layers=self.num_layers,
+                layer_widths=self.layer_widths,
+                dropout=self.dropout,
+                optimizer_kwargs={"lr": self.learning_rate},
                 model_name=self.model_name,
                 random_state=self.seed,
-                lr_scheduler_cls=ReduceLROnPlateau,
-                lr_scheduler_kwargs={
-                    "mode": "min",
-                    "factor": self.scheduler_factor,
-                    "patience": self.scheduler_patience,
-                },
-                pl_trainer_kwargs=pl_trainer_kwargs,
-            )
-
-            return model, loss_recorder, model_tracker
-
-    class TFTConfig:
-        def __init__(self):
-            self.input_size = Config.INPUT_SIZE
-            self.output_size = Config.OUTPUT_SIZE
-            self.learning_rate = Config.LEARNING_RATE
-            self.weight_decay = Config.WEIGHT_DECAY
-            self.patience = Config.PATIENCE
-            self.min_delta = Config.MIN_DELTA
-            self.scheduler_factor = Config.SCHEDULER_FACTOR
-            self.scheduler_patience = Config.SCHEDULER_PATIENCE
-            self.checkpoint_dir = Config.CHECKPOINT_DIR
-            self.log_dir = Config.LOG_DIR
-            self.model_name = Config.MODEL_NAME
-            self.seed = Config.SEED
-            self.n_epochs = Config.NUM_EPOCHS
-            self.batch_size = Config.BATCH_SIZE
-
-        def setup_model(self):
-            """Setup the TFT model with static covariates support."""
-            from darts.models import TFTModel
-
-            model_tracker = ModelTracker("tft", self.log_dir)
-            loss_recorder = LossRecorder(model_tracker)
-            early_stopper = EarlyStopping(
-                monitor="val_loss",
-                patience=self.patience,
-                min_delta=self.min_delta,
-                mode="min",
-            )
-            pl_trainer_kwargs = {
-                "callbacks": [early_stopper, loss_recorder],
-                "enable_checkpointing": True,
-                "default_root_dir": self.checkpoint_dir,
-            }
-            model = TFTModel(
-                input_chunk_length=self.input_size,
-                output_chunk_length=self.output_size,
-                n_epochs=self.n_epochs,
-                batch_size=self.batch_size,
-                model_name=self.model_name,
-                random_state=self.seed,
-                hidden_size=32,
-                add_relative_index=True,
-                lstm_layers=2,
-                num_attention_heads=4,
-                dropout=0.1,
                 lr_scheduler_cls=ReduceLROnPlateau,
                 lr_scheduler_kwargs={
                     "mode": "min",
@@ -128,10 +80,14 @@ class Models:
 
     class NLinearConfig:
         def __init__(self):
-            self.input_size = Config.INPUT_SIZE
-            self.output_size = Config.OUTPUT_SIZE
-            self.learning_rate = Config.LEARNING_RATE
-            self.weight_decay = Config.WEIGHT_DECAY
+            # Optuna optimized parameters (Trial 46, Val MAE: 0.0128)
+            self.input_size = 10  # input_chunk_length
+            self.output_size = 3  # output_chunk_length
+            self.learning_rate = 0.0007898138167929168
+            self.shared_weights = True
+            self.const_init = True
+            self.normalize = False
+            # Config parameters
             self.patience = Config.PATIENCE
             self.min_delta = Config.MIN_DELTA
             self.scheduler_factor = Config.SCHEDULER_FACTOR
@@ -165,6 +121,10 @@ class Models:
                 output_chunk_length=self.output_size,
                 n_epochs=self.n_epochs,
                 batch_size=self.batch_size,
+                shared_weights=self.shared_weights,
+                const_init=self.const_init,
+                normalize=self.normalize,
+                optimizer_kwargs={"lr": self.learning_rate},
                 model_name=self.model_name,
                 random_state=self.seed,
                 lr_scheduler_cls=ReduceLROnPlateau,
@@ -180,10 +140,15 @@ class Models:
 
     class TiDEConfig:
         def __init__(self):
-            self.input_size = Config.INPUT_SIZE
-            self.output_size = Config.OUTPUT_SIZE
-            self.learning_rate = Config.LEARNING_RATE
-            self.weight_decay = Config.WEIGHT_DECAY
+            # Optuna optimized parameters (Trial 13, Val MAE: 0.0113)
+            self.input_size = 60  # input_chunk_length
+            self.output_size = 3  # output_chunk_length
+            self.learning_rate = 0.00021192213100293766
+            self.hidden_size = 512
+            self.num_encoder_layers = 3
+            self.num_decoder_layers = 2
+            self.dropout = 0.2
+            # Config parameters
             self.patience = Config.PATIENCE
             self.min_delta = Config.MIN_DELTA
             self.scheduler_factor = Config.SCHEDULER_FACTOR
@@ -224,12 +189,13 @@ class Models:
                 batch_size=self.batch_size,
                 model_name=self.model_name,
                 random_state=self.seed,
-                num_encoder_layers=2,
-                num_decoder_layers=2,
-                loss_fn = L1Loss(),
+                num_encoder_layers=self.num_encoder_layers,
+                num_decoder_layers=self.num_decoder_layers,
+                hidden_size=self.hidden_size,
+                dropout=self.dropout,
+                optimizer_kwargs={"lr": self.learning_rate},
+                loss_fn=L1Loss(),
                 add_encoders=encoders,
-                hidden_size=128,
-                dropout=0.1,
                 lr_scheduler_cls=ReduceLROnPlateau,
                 lr_scheduler_kwargs={
                     "mode": "min",
@@ -243,20 +209,13 @@ class Models:
 
     class LinearRegressionConfig:
         def __init__(self):
-            self.input_size = Config.INPUT_SIZE
-            self.output_size = Config.OUTPUT_SIZE
-            self.learning_rate = Config.LEARNING_RATE
-            self.weight_decay = Config.WEIGHT_DECAY
-            self.patience = Config.PATIENCE
-            self.min_delta = Config.MIN_DELTA
-            self.scheduler_factor = Config.SCHEDULER_FACTOR
-            self.scheduler_patience = Config.SCHEDULER_PATIENCE
-            self.checkpoint_dir = Config.CHECKPOINT_DIR
+            # Optuna optimized parameters (Trial 10, Val MAE: 0.0095)
+            self.input_size = 10  # lags
+            self.output_size = 3  # output_chunk_length
+            # Config parameters
             self.log_dir = Config.LOG_DIR
             self.model_name = Config.MODEL_NAME
             self.seed = Config.SEED
-            self.n_epochs = Config.NUM_EPOCHS
-            self.batch_size = Config.BATCH_SIZE
 
         def setup_model(self):
             """Setup the Linear Regression model with static covariates support."""

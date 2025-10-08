@@ -10,8 +10,6 @@ class Config:
     TRAIN_SPLIT = 0.70  # 70% of players for training
     VAL_SPLIT = 0.15  # 15% of players for validation
     TEST_SPLIT = 0.15  # 15% of players for testing
-    INPUT_SIZE = 30
-    OUTPUT_SIZE = 3
     NUM_EPOCHS = 50
     BATCH_SIZE = 128
     LEARNING_RATE = 0.0001
@@ -22,7 +20,7 @@ class Config:
     SCHEDULER_PATIENCE = 5
     CHECKPOINT_DIR = "checkpoints"
     LOG_DIR = "logs"
-    MODEL_NAME = "kickbase_model"
+    MODEL_NAME = "kickbase_model" + "_{model_type}"
     SEED = 42
     MODEL_TYPE = "tide"  # Options: "nhits", "nlinear", "tft", "tide", "linear_regression"
 

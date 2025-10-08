@@ -2,7 +2,7 @@
 Hyperparameter Optimization using Optuna for Kickbase Time Series Models.
 
 This script implements systematic Bayesian optimization to find optimal hyperparameters
-for all model types: TiDE, NHiTS, NLinear, TFT, and Linear Regression.
+for all model types: TiDE, NHiTS, NLinear, and Linear Regression.
 
 Configuration:
     Set optimization parameters in config.py under OptimizationConfig class:
@@ -31,7 +31,7 @@ from config import Config, OptimizationConfig
 from utils import setup_directories, setup_logging
 from data_processing import load_and_preprocess_data
 from darts.metrics import mae
-from darts.models import TiDEModel, NHiTSModel, NLinearModel, TFTModel, LinearRegressionModel
+from darts.models import TiDEModel, NHiTSModel, NLinearModel, LinearRegressionModel
 from darts.dataprocessing.transformers import Scaler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -97,7 +97,7 @@ class OptunaOptimizer:
         Initialize the optimizer.
 
         Args:
-            model_type: One of 'tide', 'nhits', 'nlinear', 'tft', 'linear_regression', or 'all'
+            model_type: One of 'tide', 'nhits', 'nlinear', 'linear_regression', or 'all'
             n_trials: Number of optimization trials
             n_epochs: Number of epochs per trial (lower than full training for speed)
         """
@@ -161,7 +161,7 @@ class OptunaOptimizer:
     def optimize(self):
         """Run optimization for the specified model type(s)."""
         if self.model_type == "all":
-            models = ["tide", "nhits", "nlinear", "tft", "linear_regression"]
+            models = ["tide", "nhits", "nlinear", "linear_regression"]
             logger.info("Optimizing all models sequentially...")
             results = {}
             for model in models:
@@ -198,8 +198,6 @@ class OptunaOptimizer:
             objective_func = self._objective_nhits
         elif self.model_type == "nlinear":
             objective_func = self._objective_nlinear
-        elif self.model_type == "tft":
-            objective_func = self._objective_tft
         elif self.model_type == "linear_regression":
             objective_func = self._objective_linear_regression
         else:
@@ -502,104 +500,6 @@ class OptunaOptimizer:
             self._cleanup_memory()
             return float("inf")
 
-    def _objective_tft(self, trial):
-        """
-        Objective function for TFT (Temporal Fusion Transformer) optimization.
-
-        Key hyperparameters:
-        - input_chunk_length: Input sequence length [10, 20, 30, ..., 90]
-        - output_chunk_length: Output sequence length [3, 4, 5, ..., 10]
-        - hidden_size: [32, 64, 128, 256]
-        - lstm_layers: [1, 2, 3]
-        - num_attention_heads: [1, 2, 4, 8]
-        - dropout: [0.1, 0.2, 0.3, 0.4]
-        - learning_rate: [1e-4, 5e-4, 1e-3]
-        """
-        input_chunk_length = trial.suggest_int("input_chunk_length", 10, 90, step=10)
-        output_chunk_length = trial.suggest_int("output_chunk_length", 3, 10, step=1)
-        hidden_size = trial.suggest_categorical("hidden_size", [32, 64, 128, 256])
-        lstm_layers = trial.suggest_int("lstm_layers", 1, 3)
-        num_attention_heads = trial.suggest_categorical(
-            "num_attention_heads", [1, 2, 4, 8]
-        )
-        dropout = trial.suggest_float("dropout", 0.1, 0.4, step=0.1)
-        learning_rate = trial.suggest_float("learning_rate", 1e-4, 1e-3, log=True)
-
-        # Ensure hidden_size is divisible by num_attention_heads
-        if hidden_size % num_attention_heads != 0:
-            # Adjust to nearest valid combination
-            trial.set_user_attr("skipped", "hidden_size not divisible by attention_heads")
-            return float("inf")
-
-        try:
-            early_stopper = EarlyStopping(
-                monitor="val_loss",
-                patience=Config.PATIENCE,
-                min_delta=Config.MIN_DELTA,
-                mode="min",
-            )
-            pruner = PyTorchLightningPruningCallback(trial, "val_loss")
-            pl_trainer_kwargs = {
-                "callbacks": [early_stopper, pruner],
-                "enable_checkpointing": False,
-                "enable_progress_bar": False,  # Disable to reduce overhead
-                "enable_model_summary": False,  # Disable to reduce overhead
-                "accelerator": "auto",
-            }
-
-            model = TFTModel(
-                input_chunk_length=input_chunk_length,
-                output_chunk_length=output_chunk_length,
-                n_epochs=self.n_epochs,
-                batch_size=Config.BATCH_SIZE,
-                hidden_size=hidden_size,
-                lstm_layers=lstm_layers,
-                num_attention_heads=num_attention_heads,
-                dropout=dropout,
-                add_relative_index=True,
-                model_name=f"tft_trial_{trial.number}",
-                random_state=Config.SEED,
-                optimizer_kwargs={"lr": learning_rate},
-                lr_scheduler_cls=ReduceLROnPlateau,
-                lr_scheduler_kwargs={
-                    "mode": "min",
-                    "factor": Config.SCHEDULER_FACTOR,
-                    "patience": Config.SCHEDULER_PATIENCE,
-                },
-                pl_trainer_kwargs=pl_trainer_kwargs,
-            )
-
-            # TFT uses static covariates
-            model.fit(
-                self.train_with_cov,
-                val_series=self.val_with_cov,
-                verbose=True,
-            )
-
-            # Evaluate
-            val_inputs = [series[:-output_chunk_length] for series in self.val_with_cov]
-            val_targets = [series[-output_chunk_length:] for series in self.val_with_cov]
-
-            predictions = model.predict(n=output_chunk_length, series=val_inputs)
-            val_mae = float(np.mean(mae(val_targets, predictions)))
-
-            logger.info(
-                f"Trial {trial.number}: input_len={input_chunk_length}, output_len={output_chunk_length}, "
-                f"hidden_size={hidden_size}, lstm_layers={lstm_layers}, attention_heads={num_attention_heads}, "
-                f"dropout={dropout:.2f}, lr={learning_rate:.5f}, val_MAE={val_mae:.4f}"
-            )
-
-            # Clean up memory before returning
-            self._cleanup_memory(model)
-
-            return val_mae
-
-        except Exception as e:
-            logger.error(f"Trial {trial.number} failed: {str(e)}")
-            # Clean up even on failure
-            self._cleanup_memory()
-            return float("inf")
-
     def _objective_linear_regression(self, trial):
         """
         Objective function for Linear Regression model optimization.
@@ -729,7 +629,7 @@ def main():
     logger.info(f"{'='*60}\n")
 
     # Validate model type
-    valid_models = ["tide", "nhits", "nlinear", "tft", "linear_regression", "all"]
+    valid_models = ["tide", "nhits", "nlinear", "linear_regression", "all"]
     if model_type.lower() not in valid_models:
         raise ValueError(
             f"Invalid MODEL_TO_OPTIMIZE: {model_type}. "
