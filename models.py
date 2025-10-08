@@ -7,6 +7,7 @@ Contains all model configuration classes and their setup methods.
 from config import Config
 from utils import ModelTracker, LossRecorder
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.nn import L1Loss
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from darts.dataprocessing.transformers import Scaler
 
@@ -210,6 +211,7 @@ class Models:
                 "callbacks": [early_stopper, loss_recorder],
                 "enable_checkpointing": True,
                 "default_root_dir": self.checkpoint_dir,
+                "accelerator": "auto",
             }
             encoders = {
                 "datetime_attribute": {"future": ["month", "day", "dayofweek"]},
@@ -224,6 +226,7 @@ class Models:
                 random_state=self.seed,
                 num_encoder_layers=2,
                 num_decoder_layers=2,
+                loss_fn = L1Loss(),
                 add_encoders=encoders,
                 hidden_size=128,
                 dropout=0.1,

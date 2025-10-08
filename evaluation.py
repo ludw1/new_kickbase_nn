@@ -69,7 +69,7 @@ def run_backtests(model, train_series, val_series, test_series, train_static_cov
     logger.info(f"Backtest start point: {backtest_start}")
 
     # Run backtests on each test series
-    for i, test_series in enumerate(test_series_with_cov[:5]):  # Test on first 5 series for speed
+    for i, test_series in enumerate(test_series_with_cov): 
         logger.info(f"\nBacktesting series {i+1}/5...")
 
         try:
