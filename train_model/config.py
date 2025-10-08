@@ -21,7 +21,7 @@ class Config:
     CHECKPOINT_DIR = "checkpoints"
     LOG_DIR = "logs"
     SEED = 42
-    MODEL_TYPE = "tide"  # Options: "nhits", "nlinear", "tft", "tide", "linear_regression"
+    MODEL_TYPE = "linear_regression"  # Options: "nhits", "nlinear", "tide", "linear_regression"
     MODEL_NAME = "kickbase_model"
 
 
@@ -30,8 +30,8 @@ class OptimizationConfig:
     """Configuration for hyperparameter optimization using Optuna."""
     
     # Which model(s) to optimize
-    # Options: "tide", "nhits", "nlinear", "tft", "linear_regression", "all"
-    MODEL_TO_OPTIMIZE = "tft"
+    # Options: "tide", "nhits", "nlinear", "linear_regression", "all"
+    MODEL_TO_OPTIMIZE = "all"
     
     # Number of Optuna trials to run
     N_TRIALS = 50

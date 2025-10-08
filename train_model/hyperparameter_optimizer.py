@@ -27,20 +27,21 @@ from datetime import datetime
 import gc
 import torch
 # Import from existing modules
-from config import Config, OptimizationConfig
-from utils import setup_directories, setup_logging
-from data_processing import load_and_preprocess_data
+from train_model.config import Config, OptimizationConfig
+from train_model.utils import setup_directories, setup_logging
+from train_model.data_processing import load_and_preprocess_data
 from darts.metrics import mae
 from darts.models import TiDEModel, NHiTSModel, NLinearModel, LinearRegressionModel
 from darts.dataprocessing.transformers import Scaler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from torch.nn import L1Loss
-
-logger = logging.getLogger(__name__)
 from pytorch_lightning import LightningModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
+
+logger = logging.getLogger(__name__)
+
 
 class PyTorchLightningPruningCallback(Callback):
     """PyTorch Lightning callback to prune unpromising trials.

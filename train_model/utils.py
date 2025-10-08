@@ -69,7 +69,7 @@ class ModelTracker:
                     # Darts models have a .save() method
                     if hasattr(model, 'save'):
                         model.save(model_path)
-                        logger.info(f"✓ New best model saved to {model_path} with val_loss: {val_loss:.4f}")
+                        logger.info(f"New best model saved to {model_path} with val_loss: {val_loss:.4f}")
                     else:
                         logger.warning("Model object doesn't have a save method, skipping save")
                 except Exception as e:
