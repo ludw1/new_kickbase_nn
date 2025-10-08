@@ -144,7 +144,7 @@ def main():
     test_predictions[0].plot(label="Test Prediction")
     plt.legend()
     plt.title("Test Input, Target, and Prediction Example")
-    plt.show()
+    plt.savefig(os.path.join(Config.LOG_DIR, "training_example.png"))
 
     # Calculate test metrics by comparing predictions with actual targets
     test_mae_val = mae(test_targets, test_predictions)
@@ -163,42 +163,42 @@ def main():
 
     # Track final model performance and save best model
     if hasattr(model_tracker, 'update_performance'):
-        # For linear regression, we don't have validation loss during training
+        # For Linear Regression (sklearn-based), manually evaluate and track performance
+        # All PyTorch Lightning models (NHiTS, NLinear, TiDE) are already tracked during training
+        # via the LossRecorder callback that runs after each validation epoch
         if Config.MODEL_TYPE == "linear_regression":
-            # Calculate a simple validation metric
-            if Config.MODEL_TYPE in ["tide", "nlinear", "linear_regression"]:
-                train_series_with_cov = []
-                val_series_with_cov = []
+            val_series_with_cov = []
 
-                for i, series in enumerate(train_series):
-                    series_with_cov = series.with_static_covariates(train_static_cov[i])
-                    train_series_with_cov.append(series_with_cov)
+            for i, series in enumerate(val_series):
+                series_with_cov = series.with_static_covariates(val_static_cov[i])
+                val_series_with_cov.append(series_with_cov)
 
-                for i, series in enumerate(val_series):
-                    series_with_cov = series.with_static_covariates(val_static_cov[i])
-                    val_series_with_cov.append(series_with_cov)
-
-                # Fit and evaluate on validation set
-                model.fit(train_series_with_cov)
-                val_predictions = model.predict(n=output_size, series=val_series_with_cov)
-                val_mae = mae(val_series_with_cov, val_predictions)
-                model_tracker.update_performance(val_mae, 0, final_model_path)
+            # Evaluate on validation set (model is already trained, just predict)
+            val_predictions = model.predict(n=output_size, series=val_series_with_cov)
+            val_mae = float(np.mean(mae(val_series_with_cov, val_predictions)))
+            model_tracker.update_performance(val_mae, 0, final_model_path)
 
         # Log best model information
         best_info = model_tracker.get_best_model_info()
         if best_info:
-            logger.info("\n BEST MODEL PERFORMANCE:")
+            logger.info("\n" + "="*60)
+            logger.info("BEST MODEL PERFORMANCE:")
             logger.info(f"   Best epoch: {best_info['epoch']}")
             logger.info(f"   Best validation loss: {best_info['val_loss']:.4f}")
             logger.info(f"   Timestamp: {best_info['timestamp']}")
+            logger.info("="*60)
 
-            # Save best model with a clear name
+            # For PyTorch Lightning models, the best model is saved during training
+            # For other models, copy the final model as the best
             best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pth")
             if model_tracker.best_model_path and os.path.exists(model_tracker.best_model_path):
                 # Copy best model to clearly named file
                 import shutil
                 shutil.copy2(model_tracker.best_model_path, best_model_path)
-                logger.info(f" Best model saved to: {best_model_path}")
+                logger.info(f"✓ Best model saved to: {best_model_path}")
+            else:
+                # If no specific best model was saved during training, use the final model
+                logger.info(f"✓ Using final model as best model: {final_model_path}")
 
     logger.info("Training complete.")
 
