@@ -76,7 +76,7 @@ class Models:
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
 
-            return model, loss_recorder, model_tracker
+            return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
     class NLinearConfig:
         def __init__(self):
@@ -136,7 +136,7 @@ class Models:
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
 
-            return model, loss_recorder, model_tracker
+            return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
     class TiDEConfig:
         def __init__(self):
@@ -205,7 +205,7 @@ class Models:
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
 
-            return model, loss_recorder, model_tracker
+            return model, loss_recorder, model_tracker, self.input_size, self.output_size
 
     class LinearRegressionConfig:
         def __init__(self):
@@ -237,4 +237,4 @@ class Models:
 
             loss_recorder = LinearLossRecorder()
 
-            return model, loss_recorder, model_tracker
+            return model, loss_recorder, model_tracker, self.input_size, self.output_size

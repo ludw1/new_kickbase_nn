@@ -16,8 +16,20 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 
-def run_backtests(model, train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov):
-    """Run comprehensive backtesting on the model."""
+def run_backtests(model, train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov, input_size, output_size):
+    """Run comprehensive backtesting on the model.
+    
+    Args:
+        model: Trained model
+        train_series: Training time series
+        val_series: Validation time series
+        test_series: Test time series
+        train_static_cov: Training static covariates
+        val_static_cov: Validation static covariates
+        test_static_cov: Test static covariates
+        input_size: Input size used by the model
+        output_size: Output size used by the model
+    """
     logger.info("="*50)
     logger.info("RUNNING COMPREHENSIVE BACKTESTS")
     logger.info("="*50)
@@ -62,7 +74,7 @@ def run_backtests(model, train_series, val_series, test_series, train_static_cov
     logger.info(f"Minimum test series length: {min_length}")
 
     # Set up backtesting parameters
-    forecast_horizon = min(Config.OUTPUT_SIZE, min_length // 4)  # Use smaller horizon for backtesting
+    forecast_horizon = min(output_size, min_length // 4)  # Use smaller horizon for backtesting
     backtest_start = len(test_series_with_cov[0]) // 2  # Start backtesting halfway through
 
     logger.info(f"Forecast horizon: {forecast_horizon}")

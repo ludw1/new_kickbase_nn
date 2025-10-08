@@ -22,13 +22,23 @@ def julian_to_date(julian_date: int) -> str:
 
 def load_and_preprocess_data(
     data_file: str = "all_player_data.json",
+    input_size: int = 10,
+    output_size: int = 3,
 ) -> tuple[list[TimeSeries], list[TimeSeries], list[TimeSeries], list[pd.DataFrame], list[pd.DataFrame], list[pd.DataFrame]]:
     """Load and preprocess data using actual values with series-based split.
 
     Instead of splitting each time series temporally, we split the players themselves
     into train/val/test sets. This allows the model to learn from complete seasonal
     patterns and test generalization to entirely new players.
+    
+    Args:
+        data_file: Path to the JSON data file
+        input_size: Minimum input size required by the model (default: 10)
+        output_size: Output size required by the model (default: 3)
     """
+    # Use provided sizes for filtering
+    min_input_size = input_size
+    min_output_size = output_size
     raw_data, static_cov_data, first_date = transform_data(data_file)
     logger.info(f"Processing {len(raw_data)} player time series...")
     # Set random seed for reproducible splits
@@ -87,7 +97,7 @@ def load_and_preprocess_data(
             static_cov = pd.DataFrame([static_cov_data[idx]])
 
             # Check if series is long enough for training
-            if len(series) > Config.INPUT_SIZE + Config.OUTPUT_SIZE:
+            if len(series) > min_input_size + min_output_size:
                 train_series_unscaled.append(series)
                 train_static_cov.append(static_cov)
             else:
@@ -102,7 +112,7 @@ def load_and_preprocess_data(
             series = process_series(raw_data[idx])
             static_cov = pd.DataFrame([static_cov_data[idx]])
 
-            if len(series) > Config.INPUT_SIZE + Config.OUTPUT_SIZE:
+            if len(series) > min_input_size + min_output_size:
                 val_series_unscaled.append(series)
                 val_static_cov.append(static_cov)
             else:
@@ -117,7 +127,7 @@ def load_and_preprocess_data(
             series = process_series(raw_data[idx])
             static_cov = pd.DataFrame([static_cov_data[idx]])
 
-            if len(series) > Config.INPUT_SIZE + Config.OUTPUT_SIZE:
+            if len(series) > min_input_size + min_output_size:
                 test_series_unscaled.append(series)
                 test_static_cov.append(static_cov)
             else:

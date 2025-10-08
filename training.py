@@ -24,8 +24,31 @@ def main():
     """Main function to load data and preprocess."""
     setup_directories()
     setup_logging()
+    
+    # Select model configuration based on MODEL_TYPE to get input/output sizes
+    logger.info(f"Setting up {Config.MODEL_TYPE} model configuration...")
+    if Config.MODEL_TYPE == "nhits":
+        model, loss_recorder, model_tracker, input_size, output_size = Models.NHiTSModelConfig().setup_model()
+        logger.info("Using NHiTS model")
+    elif Config.MODEL_TYPE == "nlinear":
+        model, loss_recorder, model_tracker, input_size, output_size = Models.NLinearConfig().setup_model()
+        logger.info("Using NLinear model")
+    elif Config.MODEL_TYPE == "tide":
+        model, loss_recorder, model_tracker, input_size, output_size = Models.TiDEConfig().setup_model()
+        logger.info("Using TiDE model")
+    elif Config.MODEL_TYPE == "linear_regression":
+        model, loss_recorder, model_tracker, input_size, output_size = Models.LinearRegressionConfig().setup_model()
+        logger.info("Using Linear Regression model")
+    else:
+        raise ValueError(f"Unknown model type: {Config.MODEL_TYPE}")
+
+    logger.info(f"Model setup complete: {model}")
+    logger.info(f"Using input_size={input_size}, output_size={output_size}")
+    
     logger.info("Loading and preprocessing data...")
-    train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov = load_and_preprocess_data()
+    train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov = load_and_preprocess_data(
+        input_size=input_size, output_size=output_size
+    )
 
     # Visualize example series from each set
     fig, axes = plt.subplots(3, 1, figsize=(12, 10))
@@ -48,31 +71,10 @@ def main():
     logger.info(
         f"Loaded {len(train_series)} training series, {len(val_series)} validation series, and {len(test_series)} test series."
     )
-
-    # Select model configuration based on MODEL_TYPE
-    if Config.MODEL_TYPE == "nhits":
-        model, loss_recorder, model_tracker = Models.NHiTSModelConfig().setup_model()
-        logger.info("Using NHiTS model")
-    elif Config.MODEL_TYPE == "nlinear":
-        model, loss_recorder, model_tracker = Models.NLinearConfig().setup_model()
-        logger.info("Using NLinear model")
-    elif Config.MODEL_TYPE == "tft":
-        model, loss_recorder, model_tracker = Models.TFTConfig().setup_model()
-        logger.info("Using TFT model")
-    elif Config.MODEL_TYPE == "tide":
-        model, loss_recorder, model_tracker = Models.TiDEConfig().setup_model()
-        logger.info("Using TiDE model")
-    elif Config.MODEL_TYPE == "linear_regression":
-        model, loss_recorder, model_tracker = Models.LinearRegressionConfig().setup_model()
-        logger.info("Using Linear Regression model")
-    else:
-        raise ValueError(f"Unknown model type: {Config.MODEL_TYPE}")
-
-    logger.info(f"Model setup complete: {model}")
     logger.info("Training pipeline setup complete.")
 
     # Add static covariates to time series for models that support them
-    if Config.MODEL_TYPE in ["tft", "tide", "nlinear", "linear_regression"]:
+    if Config.MODEL_TYPE in ["tide", "nlinear", "linear_regression"]:
         # Add static covariates to time series
         train_series_with_cov = []
         val_series_with_cov = []
@@ -115,19 +117,19 @@ def main():
     logger.info("Evaluating on test set...")
 
     # For proper evaluation, we need to split test series into input and target
-    # The model uses the last INPUT_SIZE points to predict the next OUTPUT_SIZE points
+    # The model uses the last input_size points to predict the next output_size points
     test_inputs = []
     test_targets = []
 
     for i, series in enumerate(test_series):
-        # Use everything except the last OUTPUT_SIZE points as input
-        # Use the last OUTPUT_SIZE points as target
-        if len(series) >= Config.INPUT_SIZE + Config.OUTPUT_SIZE:
-            input_series = series[: -Config.OUTPUT_SIZE]
-            target_series = series[-Config.OUTPUT_SIZE :]
+        # Use everything except the last output_size points as input
+        # Use the last output_size points as target
+        if len(series) >= input_size + output_size:
+            input_series = series[: -output_size]
+            target_series = series[-output_size :]
 
             # Add static covariates for models that support them
-            if Config.MODEL_TYPE in ["tft", "tide", "nlinear", "linear_regression"]:
+            if Config.MODEL_TYPE in ["tide", "nlinear", "linear_regression"]:
                 input_series = input_series.with_static_covariates(test_static_cov[i])
 
             test_inputs.append(input_series)
@@ -135,8 +137,8 @@ def main():
 
     logger.info(f"Evaluating on {len(test_inputs)} test series...")
 
-    # Predict the next OUTPUT_SIZE points for each test input
-    test_predictions = model.predict(n=Config.OUTPUT_SIZE, series=test_inputs)
+    # Predict the next output_size points for each test input
+    test_predictions = model.predict(n=output_size, series=test_inputs)
     test_inputs[0].plot(label="Test Input")
     test_targets[0].plot(label="Test Target")
     test_predictions[0].plot(label="Test Prediction")
@@ -164,7 +166,7 @@ def main():
         # For linear regression, we don't have validation loss during training
         if Config.MODEL_TYPE == "linear_regression":
             # Calculate a simple validation metric
-            if Config.MODEL_TYPE in ["tft", "tide", "nlinear", "linear_regression"]:
+            if Config.MODEL_TYPE in ["tide", "nlinear", "linear_regression"]:
                 train_series_with_cov = []
                 val_series_with_cov = []
 
@@ -178,7 +180,7 @@ def main():
 
                 # Fit and evaluate on validation set
                 model.fit(train_series_with_cov)
-                val_predictions = model.predict(n=Config.OUTPUT_SIZE, series=val_series_with_cov)
+                val_predictions = model.predict(n=output_size, series=val_series_with_cov)
                 val_mae = mae(val_series_with_cov, val_predictions)
                 model_tracker.update_performance(val_mae, 0, final_model_path)
 
@@ -205,7 +207,7 @@ def main():
     logger.info("STARTING MODEL BACKTESTING")
     logger.info("="*60)
 
-    run_backtests(model, train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov)
+    run_backtests(model, train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov, input_size, output_size)
 
     logger.info("\n" + "="*60)
     logger.info("FULL PIPELINE COMPLETE - TRAINING + BACKTESTING")
