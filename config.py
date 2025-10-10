@@ -7,7 +7,7 @@ import os
 
 class PipelineConfig:
     """Configuration for the training pipeline."""
-    mode = "evaluate"  # Options: "get_data", "train", "optimize", "evaluate"
+    mode = "optimize"  # Options: "get_data", "train", "optimize", "evaluate"
     
     # Data location - all data files and outputs will be saved here
     DATA_DIR = os.path.abspath(".")  # Current directory by default
@@ -42,7 +42,7 @@ class TrainingConfig:
     
     # General settings
     SEED = 42
-    MODEL_TYPE = "linear_regression"  # Options: "nhits", "nlinear", "tide", "linear_regression"
+    MODEL_TYPE = "tide"  # Options: "nhits", "nlinear", "tide", "linear_regression"
     MODEL_NAME = "kickbase_model"
 
 
@@ -78,8 +78,9 @@ class EvaluationConfig:
     # Model checkpoint paths - update these to point to your trained models
     MODEL_PATHS = {
         "nhits": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "nhits_state_dict.pt"),
-        "nlinear": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "nlinear_state_dict.pt"),
-        "tide": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "tide_state_dict.pt"),
+        "nlinear": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "nlinear_kickbase_model_BEST.pt"),
+        "tide": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "tide_kickbase_model_epoch_1.pt"),
+        "tide_encoders": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "tide_kickbase_model_epoch_0_encoders.pt"),
         "linear_regression": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "linear_regression_kickbase_model_final.pth"),
     }
     

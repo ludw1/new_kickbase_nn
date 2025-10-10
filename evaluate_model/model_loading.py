@@ -13,7 +13,7 @@ import pandas as pd
 from darts import TimeSeries
 from darts.models import LinearRegressionModel
 from train_model.models import Models
-from typing import Tuple, Any
+from typing import Tuple, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def _create_dummy_dataset(input_size: int, output_size: int, with_static_covaria
     return series
 
 
-def load_model_from_checkpoint(model_name: str, model_path: str) -> Tuple[Any, int, int]:
+def load_model_from_checkpoint(model_name: str, model_path: str, encoders_path: Optional[str]) -> Tuple[Any, int, int]:
     """Load a trained model from checkpoint and get its input/output sizes.
     
     Args:
@@ -114,8 +114,7 @@ def load_model_from_checkpoint(model_name: str, model_path: str) -> Tuple[Any, i
         model.model.load_state_dict(state_dict)
         
         # Load the extracted encoders/scalers from the checkpoint directory
-        encoders_path = model_path.replace('.pt', '_encoders.pth')
-        if os.path.exists(encoders_path):
+        if encoders_path and os.path.exists(encoders_path):
             logger.info(f"Loading fitted encoders from: {encoders_path}")
             try:
                 # Try loading with torch.load first

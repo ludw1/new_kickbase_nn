@@ -35,14 +35,15 @@ class ModelTracker:
         # Ensure checkpoint directory exists
         os.makedirs(checkpoint_dir, exist_ok=True)
 
-    def update_performance(self, val_loss, epoch, model_path=None, model=None):
+    def update_performance(self, val_loss, epoch, model_path=None, pl_module=None, darts_model=None):
         """Update model performance and save if best.
 
         Args:
             val_loss: Validation loss for this epoch
             epoch: Current epoch number
             model_path: Optional path where model should be saved
-            model: Optional model object to save (for Darts models with .save() method)
+            pl_module: Optional PyTorch Lightning module (the actual trained model)
+            darts_model: Optional Darts model wrapper (for accessing encoders/scalers)
         """
         performance_entry = {
             "epoch": epoch,
@@ -65,31 +66,33 @@ class ModelTracker:
             self.best_model_path = model_path
 
             # Actually save the model if provided
-            if model is not None:
+            if pl_module is not None:
                 try:
-                    # For PyTorch Lightning models (NHiTS, NLinear, TiDE), save state dict
-                    if self.model_type in ["nhits", "nlinear", "tide"] and hasattr(model, "model"):
-                        torch.save(model.model.state_dict(), model_path)
+                    # For PyTorch Lightning models (NHiTS, NLinear, TiDE), save state dict from pl_module
+                    if self.model_type in ["nhits", "nlinear", "tide"]:
+                        torch.save(pl_module.state_dict(), model_path)
                         logger.info(
                             f"New best model state dict saved to {model_path} with val_loss: {val_loss:.4f}"
                         )
                         
-                        # For TiDE, also save the encoders/scalers
-                        if self.model_type == "tide" and hasattr(model, 'encoders') and model.encoders is not None:
-                            encoders_path = model_path.replace('.pth', '_encoders.pkl')
-                            torch.save(model.encoders, encoders_path)
+                        # For TiDE, also save the encoders/scalers from the Darts model
+                        if self.model_type == "tide" and darts_model is not None and hasattr(darts_model, 'encoders') and darts_model.encoders is not None:
+                            encoders_path = model_path.replace('.pt', '_encoders.pt')
+                            torch.save(darts_model.encoders, encoders_path)
                             logger.info(f"Best model encoders saved to {encoders_path}")
-                            
-                    # For other models (like Linear Regression), use traditional save
-                    elif hasattr(model, "save"):
-                        model.save(model_path)
-                        logger.info(
-                            f"New best model saved to {model_path} with val_loss: {val_loss:.4f}"
-                        )
                     else:
                         logger.warning(
-                            "Model object doesn't have a save method, skipping save"
+                            f"Unexpected model type {self.model_type} for pl_module, skipping save"
                         )
+                except Exception as e:
+                    logger.error(f"Failed to save best model: {e}")
+            elif darts_model is not None and hasattr(darts_model, "save"):
+                # Fallback for models like Linear Regression that use traditional save
+                try:
+                    darts_model.save(model_path)
+                    logger.info(
+                        f"New best model saved to {model_path} with val_loss: {val_loss:.4f}"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to save best model: {e}")
             else:
@@ -135,12 +138,13 @@ class LossRecorder(Callback):
             current_epoch = trainer.current_epoch
             model_path = os.path.join(
                 Config.CHECKPOINT_DIR,
-                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_epoch_{current_epoch}.pth",
+                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_epoch_{current_epoch}.pt",
             )
 
-            # Pass the Darts model for saving
+            # Pass the PyTorch Lightning module directly for saving
+            # pl_module is the actual trained PLForecastingModule
             self.model_tracker.update_performance(
-                val_loss, current_epoch, model_path, model=self.darts_model
+                val_loss, current_epoch, model_path, pl_module=pl_module, darts_model=self.darts_model
             )
 
     def set_darts_model(self, darts_model):

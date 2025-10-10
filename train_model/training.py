@@ -130,7 +130,7 @@ def train_model():
 
     # Save the trained model
     final_model_path = os.path.join(
-        Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pth"
+        Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pt"
     )
     
     # Save state dict for PyTorch models, full model for linear regression
@@ -142,7 +142,7 @@ def train_model():
         
         # For TiDE, also save the encoders/scalers separately
         if Config.MODEL_TYPE == "tide" and hasattr(model, 'encoders') and model.encoders is not None:
-            encoders_path = final_model_path.replace('.pth', '_encoders.pkl')
+            encoders_path = final_model_path.replace('.pt', '_encoders.pt')
             torch.save(model.encoders, encoders_path)
             logger.info(f"Final model encoders saved to {encoders_path}")
     else:
@@ -168,7 +168,7 @@ def train_model():
 
             best_model_path = os.path.join(
                 Config.CHECKPOINT_DIR,
-                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pth",
+                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pt",
             )
             if model_tracker.best_model_path and os.path.exists(
                 model_tracker.best_model_path

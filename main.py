@@ -12,7 +12,7 @@ def setup_logging():
     """Setup logging configuration."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = os.path.join(Config.LOG_DIR, f"training_{timestamp}.log")
-
+    os.makedirs(Config.LOG_DIR, exist_ok = True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",

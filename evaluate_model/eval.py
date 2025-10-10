@@ -26,12 +26,15 @@ def evaluate_models():
     
     logger.info("Starting comprehensive model evaluation...")
     logger.info(f"Prediction length multiplier: {EvaluationConfig.PREDICTION_LENGTH_MULTIPLIER}x")
-    
+    tide_encoder_path = None
     # Check which models are available
     available_models = {}
     for model_name, model_path in EvaluationConfig.MODEL_PATHS.items():
         if os.path.exists(model_path):
-            available_models[model_name] = model_path
+            if "encoder" in model_path:
+                tide_encoder_path = model_path
+            else:
+                available_models[model_name] = model_path
             logger.info(f"Found {model_name} model")
         else:
             logger.warning(f"Model not found: {model_name}")
@@ -44,7 +47,7 @@ def evaluate_models():
     models_dict = {}
     for model_name, model_path in available_models.items():
         try:
-            model, input_size, output_size = load_model_from_checkpoint(model_name, model_path)
+            model, input_size, output_size = load_model_from_checkpoint(model_name, model_path, tide_encoder_path)
             models_dict[model_name] = {
                 'model': model,
                 'input_size': input_size,
