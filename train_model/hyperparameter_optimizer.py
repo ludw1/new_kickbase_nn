@@ -9,7 +9,7 @@ Configuration:
     - MODEL_TO_OPTIMIZE: Which model to optimize ("tide", "nhits", etc., or "all")
     - N_TRIALS: Number of optimization trials
     - N_EPOCHS_PER_TRIAL: Epochs per trial (lower than full training)
-    
+
 Usage:
     python hyperparameter_optimization.py
 """
@@ -26,9 +26,10 @@ from optuna.visualization import (
 from datetime import datetime
 import gc
 import torch
+
 # Import from existing modules
-from train_model.config import TrainingConfig as Config, OptimizationConfig
-from train_model.utils import setup_directories, setup_logging
+from config import TrainingConfig as Config, OptimizationConfig
+from train_model.utils import setup_directories
 from train_model.data_processing import load_and_preprocess_data
 from darts.metrics import mae
 from darts.models import TiDEModel, NHiTSModel, NLinearModel, LinearRegressionModel
@@ -90,6 +91,7 @@ class PyTorchLightningPruningCallback(Callback):
             message = "Trial was pruned at epoch {}.".format(epoch)
             raise optuna.TrialPruned(message)
 
+
 class OptunaOptimizer:
     """Handles hyperparameter optimization for all model types."""
 
@@ -136,17 +138,17 @@ class OptunaOptimizer:
     def _cleanup_memory(self, model=None):
         """
         Clean up memory after each trial to prevent slowdown.
-        
+
         Args:
             model: The model to delete (optional)
         """
         if model is not None:
             # Delete the model
             del model
-        
+
         # Force garbage collection
         gc.collect()
-        
+
         # Clear CUDA cache if available
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -166,9 +168,9 @@ class OptunaOptimizer:
             logger.info("Optimizing all models sequentially...")
             results = {}
             for model in models:
-                logger.info(f"\n{'='*60}")
+                logger.info(f"\n{'=' * 60}")
                 logger.info(f"Starting optimization for {model.upper()}")
-                logger.info(f"{'='*60}\n")
+                logger.info(f"{'=' * 60}\n")
                 self.model_type = model
                 study = self._run_optimization()
                 results[model] = study.best_params
@@ -178,7 +180,9 @@ class OptunaOptimizer:
 
     def _run_optimization(self):
         """Run Optuna optimization study."""
-        study_name = f"{self.model_type}_optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        study_name = (
+            f"{self.model_type}_optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
         storage_name = f"sqlite:///{os.path.join(self.optuna_dir, study_name)}.db"
 
         study = optuna.create_study(
@@ -213,9 +217,9 @@ class OptunaOptimizer:
         )
 
         # Log best results
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"OPTIMIZATION COMPLETE: {self.model_type.upper()}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"Best trial: {study.best_trial.number}")
         logger.info(f"Best validation MAE: {study.best_value:.4f}")
         logger.info("Best hyperparameters:")
@@ -299,13 +303,14 @@ class OptunaOptimizer:
                 self.train_with_cov,
                 val_series=self.val_with_cov,
                 verbose=True,
-
             )
 
             # Evaluate on validation set
             # Create validation inputs (exclude last output_chunk_length points)
             val_inputs = [series[:-output_chunk_length] for series in self.val_with_cov]
-            val_targets = [series[-output_chunk_length:] for series in self.val_with_cov]
+            val_targets = [
+                series[-output_chunk_length:] for series in self.val_with_cov
+            ]
 
             predictions = model.predict(n=output_chunk_length, series=val_inputs)
             val_mae = float(np.mean(mae(val_targets, predictions)))
@@ -479,7 +484,9 @@ class OptunaOptimizer:
 
             # Evaluate
             val_inputs = [series[:-output_chunk_length] for series in self.val_with_cov]
-            val_targets = [series[-output_chunk_length:] for series in self.val_with_cov]
+            val_targets = [
+                series[-output_chunk_length:] for series in self.val_with_cov
+            ]
 
             predictions = model.predict(n=output_chunk_length, series=val_inputs)
             val_mae = float(np.mean(mae(val_targets, predictions)))
@@ -526,12 +533,16 @@ class OptunaOptimizer:
 
             # Evaluate
             val_inputs = [series[:-output_chunk_length] for series in self.val_with_cov]
-            val_targets = [series[-output_chunk_length:] for series in self.val_with_cov]
+            val_targets = [
+                series[-output_chunk_length:] for series in self.val_with_cov
+            ]
 
             predictions = model.predict(n=output_chunk_length, series=val_inputs)
             val_mae = float(np.mean(mae(val_targets, predictions)))
 
-            logger.info(f"Trial {trial.number}: lags={lags}, output_len={output_chunk_length}, val_MAE={val_mae:.4f}")
+            logger.info(
+                f"Trial {trial.number}: lags={lags}, output_len={output_chunk_length}, val_MAE={val_mae:.4f}"
+            )
 
             # Clean up memory before returning
             self._cleanup_memory(model)
@@ -554,7 +565,7 @@ class OptunaOptimizer:
         )
         with open(params_file, "w") as f:
             f.write(f"Best Hyperparameters for {self.model_type.upper()}\n")
-            f.write(f"{'='*60}\n")
+            f.write(f"{'=' * 60}\n")
             f.write(f"Best Trial: {study.best_trial.number}\n")
             f.write(f"Best Validation MAE: {study.best_value:.4f}\n\n")
             f.write("Parameters:\n")
@@ -608,33 +619,31 @@ class OptunaOptimizer:
             logger.warning(f"Could not create some visualizations: {str(e)}")
 
 
-def main():
+def run_optimizer():
     """Main function to run hyperparameter optimization using config values."""
     # Setup
     setup_directories()
-    setup_logging()
 
     # Get configuration from OptimizationConfig
     model_type = OptimizationConfig.MODEL_TO_OPTIMIZE
     n_trials = OptimizationConfig.N_TRIALS
     n_epochs = OptimizationConfig.N_EPOCHS_PER_TRIAL
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("KICKBASE MODEL HYPERPARAMETER OPTIMIZATION")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
     logger.info(f"Model type: {model_type.upper()}")
     logger.info(f"Number of trials: {n_trials}")
     logger.info(f"Epochs per trial: {n_epochs}")
     logger.info(f"N_JOBS: {OptimizationConfig.N_JOBS}")
     logger.info(f"Show progress bar: {OptimizationConfig.SHOW_PROGRESS_BAR}")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
     # Validate model type
     valid_models = ["tide", "nhits", "nlinear", "linear_regression", "all"]
     if model_type.lower() not in valid_models:
         raise ValueError(
-            f"Invalid MODEL_TO_OPTIMIZE: {model_type}. "
-            f"Must be one of {valid_models}"
+            f"Invalid MODEL_TO_OPTIMIZE: {model_type}. Must be one of {valid_models}"
         )
 
     # Run optimization
@@ -646,9 +655,9 @@ def main():
 
     results = optimizer.optimize()
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("OPTIMIZATION COMPLETE!")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
     if isinstance(results, dict):
         # Multiple models optimized
@@ -658,9 +667,6 @@ def main():
             for key, value in params.items():
                 logger.info(f"  {key}: {value}")
     else:
-        logger.info("Best parameters saved to logs/optuna_studies/")
+        optuna_dir = os.path.join(Config.LOG_DIR, "optuna_studies")
+        logger.info(f"Best parameters saved to {optuna_dir}/")
         logger.info(f"Check the latest {model_type}_best_params_*.txt file")
-
-
-if __name__ == "__main__":
-    main()

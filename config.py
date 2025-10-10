@@ -3,6 +3,18 @@ Configuration module for training pipeline.
 
 Contains all hyperparameters and settings for model training, optimization, and evaluation.
 """
+import os
+
+class PipelineConfig:
+    """Configuration for the training pipeline."""
+    mode = "evaluate"  # Options: "get_data", "train", "optimize", "evaluate"
+    
+    # Data location - all data files and outputs will be saved here
+    DATA_DIR = os.path.abspath(".")  # Current directory by default
+    
+    # Derived paths
+    DATA_FILE = os.path.join(DATA_DIR, "all_player_data.json")
+    TEAMS_FILE = os.path.join(DATA_DIR, "all_teams.json")
 
 
 class TrainingConfig:
@@ -23,9 +35,10 @@ class TrainingConfig:
     SCHEDULER_FACTOR = 0.5
     SCHEDULER_PATIENCE = 5
     
-    # Paths
-    CHECKPOINT_DIR = "checkpoints"
-    LOG_DIR = "logs"
+    # Paths (use PipelineConfig.DATA_DIR as base)
+    CHECKPOINT_DIR = os.path.join(PipelineConfig.DATA_DIR, "checkpoints")
+    LOG_DIR = os.path.join(PipelineConfig.DATA_DIR, "logs")
+    FIGS_DIR = os.path.join(PipelineConfig.DATA_DIR, "figs")
     
     # General settings
     SEED = 42
@@ -64,19 +77,19 @@ class EvaluationConfig:
     
     # Model checkpoint paths - update these to point to your trained models
     MODEL_PATHS = {
-        "nhits": "checkpoints/nhits_kickbase_model_final.pth",
-        "nlinear": "checkpoints/nlinear_kickbase_model_final.pth",
-        "tide": "checkpoints/tide_kickbase_model_final.pth",
-        "linear_regression": "checkpoints/linear_regression_kickbase_model_final.pth",
+        "nhits": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "nhits_state_dict.pt"),
+        "nlinear": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "nlinear_state_dict.pt"),
+        "tide": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "tide_state_dict.pt"),
+        "linear_regression": os.path.join(PipelineConfig.DATA_DIR, "checkpoints", "linear_regression_kickbase_model_final.pth"),
     }
     
     # Prediction length multiplier (2x = predict twice the trained output size)
     PREDICTION_LENGTH_MULTIPLIER = 2
     
     # Output paths
-    COMPARISON_TABLE_PATH = "figs/model_comparison_table.csv"
-    COMPARISON_PLOT_PATH = "figs/model_comparison_plot.png"
-    DETAILED_RESULTS_PATH = "figs/detailed_evaluation_results.csv"
+    COMPARISON_TABLE_PATH = os.path.join(TrainingConfig.FIGS_DIR, "model_comparison_table.csv")
+    COMPARISON_PLOT_PATH = os.path.join(TrainingConfig.FIGS_DIR, "model_comparison_plot.png")
+    DETAILED_RESULTS_PATH = os.path.join(TrainingConfig.FIGS_DIR, "detailed_evaluation_results.csv")
     
     # Evaluation settings
     SEED = 42

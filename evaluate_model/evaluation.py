@@ -14,9 +14,9 @@ import logging
 from darts.metrics import mae, rmse, mape, smape
 from darts.models import NHiTSModel, NLinearModel, TiDEModel, LinearRegressionModel
 from config import EvaluationConfig, TrainingConfig as Config
-from utils import setup_directories, setup_logging
-from data_processing import load_and_preprocess_data
-from models import Models
+from train_model.utils import setup_directories
+from train_model.data_processing import load_and_preprocess_data
+from train_model.models import Models
 import torch
 from typing import Dict, List, Tuple, Any
 
@@ -232,7 +232,6 @@ def create_simple_ensemble_predictions(all_model_predictions: List[List], n_samp
     from darts import TimeSeries
     
     ensemble_predictions = []
-    n_models = len(all_model_predictions)
     
     for sample_idx in range(n_samples):
         # Average predictions from all models
@@ -573,8 +572,7 @@ def create_predictions_plot(all_results: Dict[str, Dict[str, float]], extended_o
 def main():
     """Main evaluation function - loads and evaluates all models."""
     setup_directories()
-    setup_logging()
-    
+
     logger.info("Starting comprehensive model evaluation...")
     logger.info(f"Prediction length multiplier: {EvaluationConfig.PREDICTION_LENGTH_MULTIPLIER}x")
     

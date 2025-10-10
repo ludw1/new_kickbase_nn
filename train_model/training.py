@@ -10,42 +10,54 @@ import matplotlib.pyplot as plt
 
 # Import from new modular structure
 from config import TrainingConfig as Config
-from models import Models
-from utils import setup_directories, setup_logging
-from data_processing import load_and_preprocess_data
+from train_model.models import Models
+from train_model.utils import setup_directories
+from train_model.data_processing import load_and_preprocess_data
 
 logger = logging.getLogger(__name__)
 
 
-def main():
+def train_model():
     """Main function to load data and preprocess."""
     setup_directories()
-    setup_logging()
-    
+
     # Select model configuration based on MODEL_TYPE to get input/output sizes
     logger.info(f"Setting up {Config.MODEL_TYPE} model configuration...")
     if Config.MODEL_TYPE == "nhits":
-        model, loss_recorder, model_tracker, input_size, output_size = Models.NHiTSModelConfig().setup_model()
+        model, loss_recorder, model_tracker, input_size, output_size = (
+            Models.NHiTSModelConfig().setup_model()
+        )
         logger.info("Using NHiTS model")
     elif Config.MODEL_TYPE == "nlinear":
-        model, loss_recorder, model_tracker, input_size, output_size = Models.NLinearConfig().setup_model()
+        model, loss_recorder, model_tracker, input_size, output_size = (
+            Models.NLinearConfig().setup_model()
+        )
         logger.info("Using NLinear model")
     elif Config.MODEL_TYPE == "tide":
-        model, loss_recorder, model_tracker, input_size, output_size = Models.TiDEConfig().setup_model()
+        model, loss_recorder, model_tracker, input_size, output_size = (
+            Models.TiDEConfig().setup_model()
+        )
         logger.info("Using TiDE model")
     elif Config.MODEL_TYPE == "linear_regression":
-        model, loss_recorder, model_tracker, input_size, output_size = Models.LinearRegressionConfig().setup_model()
+        model, loss_recorder, model_tracker, input_size, output_size = (
+            Models.LinearRegressionConfig().setup_model()
+        )
         logger.info("Using Linear Regression model")
     else:
         raise ValueError(f"Unknown model type: {Config.MODEL_TYPE}")
 
     logger.info(f"Model setup complete: {model}")
     logger.info(f"Using input_size={input_size}, output_size={output_size}")
-    
+
     logger.info("Loading and preprocessing data...")
-    train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov = load_and_preprocess_data(
-        input_size=input_size, output_size=output_size
-    )
+    (
+        train_series,
+        val_series,
+        test_series,
+        train_static_cov,
+        val_static_cov,
+        test_static_cov,
+    ) = load_and_preprocess_data(input_size=input_size, output_size=output_size)
 
     # Visualize example series from each set
     fig, axes = plt.subplots(3, 1, figsize=(12, 10))
@@ -89,9 +101,13 @@ def main():
         if Config.MODEL_TYPE == "linear_regression":
             # Linear regression doesn't have verbose parameter or epochs
             model.fit(train_series_with_cov, val_series=val_series_with_cov)
-            logger.info("Linear Regression training complete (no epochs - direct fitting).")
+            logger.info(
+                "Linear Regression training complete (no epochs - direct fitting)."
+            )
         else:
-            model.fit(train_series_with_cov, val_series=val_series_with_cov, verbose=True)
+            model.fit(
+                train_series_with_cov, val_series=val_series_with_cov, verbose=True
+            )
             logger.info("Model training complete.")
     else:
         model.fit(train_series, val_series=val_series, verbose=True)
@@ -108,30 +124,55 @@ def main():
         plt.savefig(os.path.join(Config.LOG_DIR, "loss_curves.png"))
         plt.close()
     else:
-        logger.info("Linear Regression doesn't use epoch-based training, skipping loss curves.")
+        logger.info(
+            "Linear Regression doesn't use epoch-based training, skipping loss curves."
+        )
 
     # Save the trained model
-    final_model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pth")
-    model.save(final_model_path)
-    logger.info(f"Final model saved to {final_model_path}")
+    final_model_path = os.path.join(
+        Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pth"
+    )
+    
+    # Save state dict for PyTorch models, full model for linear regression
+    if Config.MODEL_TYPE in ["nhits", "nlinear", "tide"]:
+        # Save only the state dict for PyTorch Lightning models
+        import torch
+        torch.save(model.model.state_dict(), final_model_path)
+        logger.info(f"Final model state dict saved to {final_model_path}")
+        
+        # For TiDE, also save the encoders/scalers separately
+        if Config.MODEL_TYPE == "tide" and hasattr(model, 'encoders') and model.encoders is not None:
+            encoders_path = final_model_path.replace('.pth', '_encoders.pkl')
+            torch.save(model.encoders, encoders_path)
+            logger.info(f"Final model encoders saved to {encoders_path}")
+    else:
+        # Linear regression uses the traditional save method
+        model.save(final_model_path)
+        logger.info(f"Final model saved to {final_model_path}")
 
     # Track final model performance and save best model
     if Config.MODEL_TYPE != "linear_regression":
-    # Log best model information
+        # Log best model information
         best_info = model_tracker.get_best_model_info()
         if best_info:
-            logger.info("\n" + "="*60)
+            logger.info("\n" + "=" * 60)
             logger.info("BEST MODEL PERFORMANCE:")
             logger.info(f"   Best epoch: {best_info['epoch']}")
             logger.info(f"   Best validation loss: {best_info['val_loss']:.4f}")
             logger.info(f"   Timestamp: {best_info['timestamp']}")
-            logger.info("="*60)
+            logger.info("=" * 60)
 
             # For PyTorch Lightning models, the best model is saved during training
             # For other models, copy the final model as the best
             import shutil
-            best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pth")
-            if model_tracker.best_model_path and os.path.exists(model_tracker.best_model_path):
+
+            best_model_path = os.path.join(
+                Config.CHECKPOINT_DIR,
+                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_BEST.pth",
+            )
+            if model_tracker.best_model_path and os.path.exists(
+                model_tracker.best_model_path
+            ):
                 # Copy best model to clearly named file
                 shutil.copy2(model_tracker.best_model_path, best_model_path)
                 logger.info(f"Best model saved to: {best_model_path}")
@@ -139,10 +180,6 @@ def main():
                 # If no specific best model was saved during training, use the final model
                 logger.info(f"Using final model as best model: {final_model_path}")
 
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     logger.info("TRAINING COMPLETE")
-    logger.info("="*60)
-
-
-if __name__ == "__main__":
-    main()
+    logger.info("=" * 60)

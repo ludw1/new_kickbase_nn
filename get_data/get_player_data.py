@@ -2,11 +2,11 @@ import logging
 import aiohttp
 import asyncio
 import json
+import os
 from get_data.models import TeamResponse, PlayerMarketValueResponse
 from get_data.auth import login
-
-logging.basicConfig(level=logging.INFO)
-
+from config import PipelineConfig
+logger = logging.getLogger(__name__)
 
 class GetPlayerData:
     def __init__(self, token: str, session: aiohttp.ClientSession):
@@ -34,7 +34,7 @@ class GetPlayerData:
         Returns:
             list[TeamResponse]: A list of team responses containing player data.
         """
-        logging.info("Fetching teams data from API.")
+        logger.info("Fetching teams data from API.")
         url = "https://api.kickbase.com/v4/competitions/{competition}/teams/{team_id}/teamprofile"
         headers = {
             "Content-Type": "application/json",
@@ -45,18 +45,18 @@ class GetPlayerData:
 
         async def fetch_team(team_id: int) -> TeamResponse:
             team_data = TeamResponse(tid=0, tn="", it=[])
-            logging.info(f"Fetching data for team {team_id}")
+            logger.info(f"Fetching data for team {team_id}")
             try:
                 async with self.session.get(
                     url.format(team_id=team_id, competition=competition),
                     headers=headers,
                 ) as response:
                     response.raise_for_status()
-                    logging.info(f"Data for team {team_id} fetched successfully.")
+                    logger.info(f"Data for team {team_id} fetched successfully.")
                     team_data = TeamResponse(**await response.json())
 
             except Exception as e:
-                logging.info(f"Error fetching data for team {team_id}: {e}")
+                logger.info(f"Error fetching data for team {team_id}: {e}")
             return team_data
 
         tasks = [
@@ -64,12 +64,12 @@ class GetPlayerData:
         ]  # We dont know the exact range
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for team_data in results:
-            logging.info(f"Processing team data: {team_data}")
+            logger.info(f"Processing team data: {team_data}")
             if isinstance(team_data, BaseException) or not team_data.it:
                 continue
             else:
                 all_teams.append(team_data)
-        logging.info(f"Found {len(all_teams)} teams with players.")
+        logger.info(f"Found {len(all_teams)} teams with players.")
         return all_teams
 
     async def get_player_data(
@@ -90,14 +90,14 @@ class GetPlayerData:
             "Cookie": f"kkstrauth={self.token};",
         }
         player_data = PlayerMarketValueResponse(it=[])
-        logging.info(f"Fetching data for player {player_id}")
+        logger.info(f"Fetching data for player {player_id}")
         try:
             async with self.session.get(url, headers=headers) as response:
                 response.raise_for_status()
-                logging.info(f"Data for player {player_id} fetched successfully.")
+                logger.info(f"Data for player {player_id} fetched successfully.")
                 player_data = PlayerMarketValueResponse(**await response.json())
         except Exception as e:
-            logging.info(f"Error fetching data for player {player_id}: {e}")
+            logger.info(f"Error fetching data for player {player_id}: {e}")
         return player_data, player_id
 
     async def get_all_player_data(
@@ -123,7 +123,7 @@ class GetPlayerData:
         return all_player_data
 
 
-async def main():
+async def get_api_data():
     user = login()
     token = user.tkn
     all_player_data = {}
@@ -143,14 +143,19 @@ async def main():
             for team in result
             for player in team.it
         }
-        with open("all_teams.json", "w") as f:
+        # Ensure data directory exists
+        os.makedirs(os.path.dirname(PipelineConfig.TEAMS_FILE) or '.', exist_ok=True)
+        
+        with open(PipelineConfig.TEAMS_FILE, "w") as f:
             writable_result = [
                 team.model_dump() for team in result
             ]  # Need to convert to dicts
             json.dump(writable_result, f, indent=4)
-        logging.info(f"Total teams fetched: {len(result)}")
+        logger.info(f"Total teams fetched: {len(result)}")
+        logger.info(f"Teams data saved to: {PipelineConfig.TEAMS_FILE}")
+        
         all_player_data = await player_data.get_all_player_data(result)
-        logging.info(f"Total players fetched: {len(all_player_data)}")
+        logger.info(f"Total players fetched: {len(all_player_data)}")
         for player_id, player_mv in all_player_data.items():
             file_player_data[
                 player_data_lookup.get(player_id, {}).get("name", "") + "_" + player_id
@@ -158,9 +163,7 @@ async def main():
                 "player_info": player_data_lookup.get(player_id, {}),
                 "market_value": player_mv.model_dump(),
             }
-        with open("all_player_data.json", "w") as f:
+        with open(PipelineConfig.DATA_FILE, "w") as f:
             json.dump(file_player_data, f, indent=4)
+        logger.info(f"Player data saved to: {PipelineConfig.DATA_FILE}")
 
-
-if __name__ == "__main__":
-    asyncio.run(main())

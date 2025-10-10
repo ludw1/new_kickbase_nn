@@ -15,24 +15,32 @@ This repo is a remake of [kickbase_nn](https://github.com/ludw1/kickbase_nn) wit
    cd new_kickbase_nn/get_data or cd ../train_model
    pip install -r requirements.txt
    ```
-3. **Set Up Environment Variables**:
+3. **Configure Data Location** (Optional):
+    By default, all data files, checkpoints, logs, and figures will be saved in the current directory. To change the data location, edit `config.py`:
+    ```python
+    class PipelineConfig:
+        DATA_DIR = "/path/to/your/data/directory"  # Change this to your desired location
+    ```
+    All pipeline steps (data fetching, training, optimization, evaluation) will automatically use this directory.
+
+4. **Set Up Environment Variables**:
     Create a `.env` file in the `get_data` directory with your Kickbase credentials:
     ```
     KICKBASE_USERNAME=your_username
     KICKBASE_PASSWORD=your_password
     ```
-4. **Fetch Player Data**:
+5. **Fetch Player Data**:
     Run the data fetching script:
     ```bash
     python main.py
     ```
-5. **Train Models**:
+6. **Train Models**:
     Navigate to the `train_model` directory and run the training script:
     ```bash
     python training.py
     ```
     You can adjust configurations in `config.py` as needed.
-6. **Evaluate Models**:
+7. **Evaluate Models**:
     After training, evaluate the models using:
     ```bash
     python evaluation.py

@@ -23,19 +23,21 @@ class ModelTracker:
         self.model_type = model_type
         self.log_dir = log_dir
         self.checkpoint_dir = checkpoint_dir
-        self.best_val_loss = float('inf')
+        self.best_val_loss = float("inf")
         self.best_model_path = None
-        self.tracking_file = os.path.join(log_dir, f"model_performance_{model_type}.csv")
+        self.tracking_file = os.path.join(
+            log_dir, f"model_performance_{model_type}.csv"
+        )
 
         # Initialize tracking CSV
         self.performance_data = []
-        
+
         # Ensure checkpoint directory exists
         os.makedirs(checkpoint_dir, exist_ok=True)
 
     def update_performance(self, val_loss, epoch, model_path=None, model=None):
         """Update model performance and save if best.
-        
+
         Args:
             val_loss: Validation loss for this epoch
             epoch: Current epoch number
@@ -43,39 +45,57 @@ class ModelTracker:
             model: Optional model object to save (for Darts models with .save() method)
         """
         performance_entry = {
-            'epoch': epoch,
-            'val_loss': val_loss,
-            'is_best': val_loss < self.best_val_loss,
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "epoch": epoch,
+            "val_loss": val_loss,
+            "is_best": val_loss < self.best_val_loss,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
         self.performance_data.append(performance_entry)
 
         if val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            
+
             # Generate best model path if not provided
             if not model_path:
                 model_path = os.path.join(
-                    self.checkpoint_dir, 
-                    f"{self.model_type}_best_epoch_{epoch}.pth"
+                    self.checkpoint_dir, f"{self.model_type}_best_epoch_{epoch}.pth"
                 )
-            
+
             self.best_model_path = model_path
-            
+
             # Actually save the model if provided
             if model is not None:
                 try:
-                    # Darts models have a .save() method
-                    if hasattr(model, 'save'):
+                    # For PyTorch Lightning models (NHiTS, NLinear, TiDE), save state dict
+                    if self.model_type in ["nhits", "nlinear", "tide"] and hasattr(model, "model"):
+                        torch.save(model.model.state_dict(), model_path)
+                        logger.info(
+                            f"New best model state dict saved to {model_path} with val_loss: {val_loss:.4f}"
+                        )
+                        
+                        # For TiDE, also save the encoders/scalers
+                        if self.model_type == "tide" and hasattr(model, 'encoders') and model.encoders is not None:
+                            encoders_path = model_path.replace('.pth', '_encoders.pkl')
+                            torch.save(model.encoders, encoders_path)
+                            logger.info(f"Best model encoders saved to {encoders_path}")
+                            
+                    # For other models (like Linear Regression), use traditional save
+                    elif hasattr(model, "save"):
                         model.save(model_path)
-                        logger.info(f"New best model saved to {model_path} with val_loss: {val_loss:.4f}")
+                        logger.info(
+                            f"New best model saved to {model_path} with val_loss: {val_loss:.4f}"
+                        )
                     else:
-                        logger.warning("Model object doesn't have a save method, skipping save")
+                        logger.warning(
+                            "Model object doesn't have a save method, skipping save"
+                        )
                 except Exception as e:
                     logger.error(f"Failed to save best model: {e}")
             else:
-                logger.info(f"New best val_loss: {val_loss:.4f} at epoch {epoch} (model not provided for saving)")
+                logger.info(
+                    f"New best val_loss: {val_loss:.4f} at epoch {epoch} (model not provided for saving)"
+                )
 
         # Save performance tracking
         self._save_performance()
@@ -90,7 +110,7 @@ class ModelTracker:
         if not self.performance_data:
             return None
 
-        best_entry = min(self.performance_data, key=lambda x: x['val_loss'])
+        best_entry = min(self.performance_data, key=lambda x: x["val_loss"])
         return best_entry
 
 
@@ -113,11 +133,16 @@ class LossRecorder(Callback):
         # Update model tracker with validation performance
         if self.model_tracker:
             current_epoch = trainer.current_epoch
-            model_path = os.path.join(Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_epoch_{current_epoch}.pth")
-            
+            model_path = os.path.join(
+                Config.CHECKPOINT_DIR,
+                f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_epoch_{current_epoch}.pth",
+            )
+
             # Pass the Darts model for saving
-            self.model_tracker.update_performance(val_loss, current_epoch, model_path, model=self.darts_model)
-    
+            self.model_tracker.update_performance(
+                val_loss, current_epoch, model_path, model=self.darts_model
+            )
+
     def set_darts_model(self, darts_model):
         """Set the Darts model reference after model initialization."""
         self.darts_model = darts_model
@@ -145,15 +170,3 @@ def setup_directories():
     """Setup checkpoint and log directories."""
     os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
     os.makedirs(Config.LOG_DIR, exist_ok=True)
-
-
-def setup_logging():
-    """Setup logging configuration."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(Config.LOG_DIR, f"training_{timestamp}.log")
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
-    )

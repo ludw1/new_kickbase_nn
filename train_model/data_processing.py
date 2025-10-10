@@ -10,32 +10,47 @@ import pandas as pd
 import logging
 from darts import TimeSeries
 from sklearn.preprocessing import RobustScaler
-from transform_data import transform_data
-from config import TrainingConfig as Config
+from train_model.transform_data import transform_data
+from config import TrainingConfig as Config, PipelineConfig
 from datetime import datetime, timedelta
+
 logger = logging.getLogger(__name__)
+
+
 def julian_to_date(julian_date: int) -> str:
     """Convert a Julian date to a standard date format (YYYY-MM-DD)."""
     reference_date = datetime(1970, 1, 1)
     converted_date = reference_date + timedelta(days=julian_date)
     return converted_date.strftime("%d.%m.%Y")
 
+
 def load_and_preprocess_data(
-    data_file: str = "all_player_data.json",
+    data_file: str | None = None,
     input_size: int = 10,
     output_size: int = 3,
-) -> tuple[list[TimeSeries], list[TimeSeries], list[TimeSeries], list[pd.DataFrame], list[pd.DataFrame], list[pd.DataFrame]]:
+) -> tuple[
+    list[TimeSeries],
+    list[TimeSeries],
+    list[TimeSeries],
+    list[pd.DataFrame],
+    list[pd.DataFrame],
+    list[pd.DataFrame],
+]:
     """Load and preprocess data using actual values with series-based split.
 
     Instead of splitting each time series temporally, we split the players themselves
     into train/val/test sets. This allows the model to learn from complete seasonal
     patterns and test generalization to entirely new players.
-    
+
     Args:
-        data_file: Path to the JSON data file
+        data_file: Path to the JSON data file (defaults to PipelineConfig.DATA_FILE)
         input_size: Minimum input size required by the model (default: 10)
         output_size: Output size required by the model (default: 3)
     """
+    # Use default data file from config if not provided
+    if data_file is None:
+        data_file = PipelineConfig.DATA_FILE
+
     # Use provided sizes for filtering
     min_input_size = input_size
     min_output_size = output_size
@@ -77,16 +92,11 @@ def load_and_preprocess_data(
         # Create a datetime index starting from a reference date
         # Assuming daily data
         time_index = pd.date_range(
-            start=julian_to_date(first_date), 
-            periods=len(values), 
-            freq='D'
+            start=julian_to_date(first_date), periods=len(values), freq="D"
         )
-        
+
         # Create TimeSeries with datetime index
-        series = TimeSeries.from_times_and_values(
-            times=time_index,
-            values=values
-        )
+        series = TimeSeries.from_times_and_values(times=time_index, values=values)
 
         return series
 
@@ -146,10 +156,8 @@ def load_and_preprocess_data(
     )
 
     # Analyze and handle outliers
-    all_train_values = np.concatenate(
-        [s.values() for s in train_series_unscaled]
-    )
-    
+    all_train_values = np.concatenate([s.values() for s in train_series_unscaled])
+
     # Clip extreme outliers at 1st and 99th percentile
     lower_bound = np.percentile(all_train_values, 1)
     upper_bound = np.percentile(all_train_values, 99)
@@ -175,7 +183,9 @@ def load_and_preprocess_data(
     all_train_clipped = np.concatenate([s.values() for s in train_series_clipped])
     scaler.fit(all_train_clipped)
 
-    logger.info(f"After clipping - Mean: {np.mean(all_train_clipped):.4f}, Std: {np.std(all_train_clipped):.4f}")
+    logger.info(
+        f"After clipping - Mean: {np.mean(all_train_clipped):.4f}, Std: {np.std(all_train_clipped):.4f}"
+    )
 
     def scale_series(series_list, fitted_scaler):
         scaled_list = []
@@ -193,4 +203,11 @@ def load_and_preprocess_data(
     val_series = scale_series(val_series_clipped, scaler)
     test_series = scale_series(test_series_clipped, scaler)
 
-    return train_series, val_series, test_series, train_static_cov, val_static_cov, test_static_cov
+    return (
+        train_series,
+        val_series,
+        test_series,
+        train_static_cov,
+        val_static_cov,
+        test_static_cov,
+    )
