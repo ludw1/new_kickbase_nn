@@ -21,18 +21,22 @@ class LoginResponse(BaseModel):
     tkn: str  # Token
     tknex: str  # Token expiration date
 
+
 class TeamResponse(BaseModel):
     class Player(BaseModel):
         i: str
         n: str
         pos: int
         mv: int
+
     tid: int
     tn: str
     it: list[Player]
+
 
 class PlayerMarketValueResponse(BaseModel):
     class MarketValueEntry(BaseModel):
         dt: int  # Date
         mv: int  # Market value
+
     it: list[MarketValueEntry]

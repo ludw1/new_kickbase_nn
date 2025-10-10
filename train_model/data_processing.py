@@ -56,8 +56,8 @@ def load_and_preprocess_data(
     min_output_size = output_size
     raw_data, static_cov_data, first_date = transform_data(data_file)
     logger.info(f"Processing {len(raw_data)} player time series...")
-    # Set random seed for reproducible splits
 
+    # Set random seed for reproducible splits
     np.random.seed(Config.SEED)
 
     # Shuffle the player indices
@@ -85,8 +85,6 @@ def load_and_preprocess_data(
     filtered = 0
 
     def process_series(player_values):
-        """Use actual values directly and create TimeSeries."""
-        # Use actual values directly (no differencing)
         values = np.array(player_values)
 
         # Create a datetime index starting from a reference date
@@ -95,12 +93,11 @@ def load_and_preprocess_data(
             start=julian_to_date(first_date), periods=len(values), freq="D"
         )
 
-        # Create TimeSeries with datetime index
+
         series = TimeSeries.from_times_and_values(times=time_index, values=values)
 
         return series
 
-    # Process training players (convert to differences)
     for idx in train_indices:
         try:
             series = process_series(raw_data[idx])
@@ -116,7 +113,6 @@ def load_and_preprocess_data(
             logger.warning(f"Failed to process training player {idx}: {e}")
             filtered += 1
 
-    # Process validation players (convert to differences)
     for idx in val_indices:
         try:
             series = process_series(raw_data[idx])
@@ -131,7 +127,6 @@ def load_and_preprocess_data(
             logger.warning(f"Failed to process validation player {idx}: {e}")
             filtered += 1
 
-    # Process test players (convert to differences)
     for idx in test_indices:
         try:
             series = process_series(raw_data[idx])
@@ -151,9 +146,7 @@ def load_and_preprocess_data(
     logger.info(
         f"Processed counts: {len(train_series_unscaled)} train, {len(val_series_unscaled)} val, {len(test_series_unscaled)} test series"
     )
-    logger.info(
-        f"Static covariates: {len(train_static_cov)} train, {len(val_static_cov)} val, {len(test_static_cov)} test"
-    )
+
 
     # Analyze and handle outliers
     all_train_values = np.concatenate([s.values() for s in train_series_unscaled])
@@ -178,7 +171,7 @@ def load_and_preprocess_data(
     val_series_clipped = clip_series(val_series_unscaled)
     test_series_clipped = clip_series(test_series_unscaled)
 
-    # Use RobustScaler which is resistant to outliers (uses median and IQR)
+    # Use RobustScaler which is resistant to outliers
     scaler = RobustScaler()
     all_train_clipped = np.concatenate([s.values() for s in train_series_clipped])
     scaler.fit(all_train_clipped)

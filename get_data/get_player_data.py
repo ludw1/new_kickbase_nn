@@ -6,7 +6,9 @@ import os
 from get_data.models import TeamResponse, PlayerMarketValueResponse
 from get_data.auth import login
 from config import PipelineConfig
+
 logger = logging.getLogger(__name__)
+
 
 class GetPlayerData:
     def __init__(self, token: str, session: aiohttp.ClientSession):
@@ -144,8 +146,8 @@ async def get_api_data():
             for player in team.it
         }
         # Ensure data directory exists
-        os.makedirs(os.path.dirname(PipelineConfig.TEAMS_FILE) or '.', exist_ok=True)
-        
+        os.makedirs(os.path.dirname(PipelineConfig.TEAMS_FILE) or ".", exist_ok=True)
+
         with open(PipelineConfig.TEAMS_FILE, "w") as f:
             writable_result = [
                 team.model_dump() for team in result
@@ -153,7 +155,7 @@ async def get_api_data():
             json.dump(writable_result, f, indent=4)
         logger.info(f"Total teams fetched: {len(result)}")
         logger.info(f"Teams data saved to: {PipelineConfig.TEAMS_FILE}")
-        
+
         all_player_data = await player_data.get_all_player_data(result)
         logger.info(f"Total players fetched: {len(all_player_data)}")
         for player_id, player_mv in all_player_data.items():
@@ -166,4 +168,3 @@ async def get_api_data():
         with open(PipelineConfig.DATA_FILE, "w") as f:
             json.dump(file_player_data, f, indent=4)
         logger.info(f"Player data saved to: {PipelineConfig.DATA_FILE}")
-

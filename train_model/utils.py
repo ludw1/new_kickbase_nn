@@ -6,7 +6,6 @@ Contains ModelTracker, LossRecorder, ContinuityLoss, and setup functions.
 
 import os
 import torch
-import torch.nn as nn
 import pandas as pd
 import logging
 from datetime import datetime
@@ -35,7 +34,9 @@ class ModelTracker:
         # Ensure checkpoint directory exists
         os.makedirs(checkpoint_dir, exist_ok=True)
 
-    def update_performance(self, val_loss, epoch, model_path=None, pl_module=None, darts_model=None):
+    def update_performance(
+        self, val_loss, epoch, model_path=None, pl_module=None, darts_model=None
+    ):
         """Update model performance and save if best.
 
         Args:
@@ -74,10 +75,15 @@ class ModelTracker:
                         logger.info(
                             f"New best model state dict saved to {model_path} with val_loss: {val_loss:.4f}"
                         )
-                        
+
                         # For TiDE, also save the encoders/scalers from the Darts model
-                        if self.model_type == "tide" and darts_model is not None and hasattr(darts_model, 'encoders') and darts_model.encoders is not None:
-                            encoders_path = model_path.replace('.pt', '_encoders.pt')
+                        if (
+                            self.model_type == "tide"
+                            and darts_model is not None
+                            and hasattr(darts_model, "encoders")
+                            and darts_model.encoders is not None
+                        ):
+                            encoders_path = model_path.replace(".pt", "_encoders.pt")
                             torch.save(darts_model.encoders, encoders_path)
                             logger.info(f"Best model encoders saved to {encoders_path}")
                     else:
@@ -144,7 +150,11 @@ class LossRecorder(Callback):
             # Pass the PyTorch Lightning module directly for saving
             # pl_module is the actual trained PLForecastingModule
             self.model_tracker.update_performance(
-                val_loss, current_epoch, model_path, pl_module=pl_module, darts_model=self.darts_model
+                val_loss,
+                current_epoch,
+                model_path,
+                pl_module=pl_module,
+                darts_model=self.darts_model,
             )
 
     def set_darts_model(self, darts_model):
@@ -152,22 +162,6 @@ class LossRecorder(Callback):
         self.darts_model = darts_model
 
 
-class ContinuityLoss(nn.Module):
-    """Custom loss to enforce continuity between input and output sequences for residual predictions."""
-
-    def __init__(self, continuity_weight: float = 1.5):
-        super(ContinuityLoss, self).__init__()
-        self.continuity_weight = continuity_weight
-        self.mse = nn.MSELoss()
-
-    def forward(self, inputs, predictions, targets):
-        # For residual predictions, the first prediction should be close to 0 (continuity)
-        # because it represents the change from the last input value
-        overall_loss = self.mse(predictions, targets)
-        continuity_loss = self.mse(
-            predictions[:, 0], torch.zeros_like(predictions[:, 0])
-        )
-        return overall_loss + self.continuity_weight * continuity_loss
 
 
 def setup_directories():

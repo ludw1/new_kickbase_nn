@@ -7,8 +7,6 @@ Orchestrates the entire training, evaluation, and backtesting process.
 import os
 import logging
 import matplotlib.pyplot as plt
-
-# Import from new modular structure
 from config import TrainingConfig as Config
 from train_model.models import Models
 from train_model.utils import setup_directories
@@ -132,17 +130,22 @@ def train_model():
     final_model_path = os.path.join(
         Config.CHECKPOINT_DIR, f"{Config.MODEL_TYPE}_{Config.MODEL_NAME}_final.pt"
     )
-    
+
     # Save state dict for PyTorch models, full model for linear regression
     if Config.MODEL_TYPE in ["nhits", "nlinear", "tide"]:
         # Save only the state dict for PyTorch Lightning models
         import torch
+
         torch.save(model.model.state_dict(), final_model_path)
         logger.info(f"Final model state dict saved to {final_model_path}")
-        
+
         # For TiDE, also save the encoders/scalers separately
-        if Config.MODEL_TYPE == "tide" and hasattr(model, 'encoders') and model.encoders is not None:
-            encoders_path = final_model_path.replace('.pt', '_encoders.pt')
+        if (
+            Config.MODEL_TYPE == "tide"
+            and hasattr(model, "encoders")
+            and model.encoders is not None
+        ):
+            encoders_path = final_model_path.replace(".pt", "_encoders.pt")
             torch.save(model.encoders, encoders_path)
             logger.info(f"Final model encoders saved to {encoders_path}")
     else:
@@ -152,7 +155,6 @@ def train_model():
 
     # Track final model performance and save best model
     if Config.MODEL_TYPE != "linear_regression":
-        # Log best model information
         best_info = model_tracker.get_best_model_info()
         if best_info:
             logger.info("\n" + "=" * 60)

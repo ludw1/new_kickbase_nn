@@ -11,12 +11,13 @@ from torch.nn import L1Loss
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from darts.dataprocessing.transformers import Scaler
 
+
 class Models:
     """Container class for all model configurations."""
 
     class NHiTSModelConfig:
         def __init__(self):
-            # Optuna optimized parameters (Trial 13, Val MAE: 0.0093)
+            # Optuna optimized parameters 
             self.input_size = 10  # input_chunk_length
             self.output_size = 3  # output_chunk_length
             self.learning_rate = 0.00023384895140376912
@@ -75,22 +76,27 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
-            
+
             # Set the model reference in the loss recorder so it can save best models
             loss_recorder.set_darts_model(model)
 
-            return model, loss_recorder, model_tracker, self.input_size, self.output_size
+            return (
+                model,
+                loss_recorder,
+                model_tracker,
+                self.input_size,
+                self.output_size,
+            )
 
     class NLinearConfig:
         def __init__(self):
-            # Optuna optimized parameters (Trial 46, Val MAE: 0.0128)
-            self.input_size = 10  # input_chunk_length
-            self.output_size = 3  # output_chunk_length
+            self.input_size = 10 
+            self.output_size = 3  
             self.learning_rate = 0.0007898138167929168
             self.shared_weights = True
             self.const_init = True
             self.normalize = False
-            # Config parameters
+
             self.patience = Config.PATIENCE
             self.min_delta = Config.MIN_DELTA
             self.scheduler_factor = Config.SCHEDULER_FACTOR
@@ -138,23 +144,28 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
-            
-            # Set the model reference in the loss recorder so it can save best models
+
             loss_recorder.set_darts_model(model)
 
-            return model, loss_recorder, model_tracker, self.input_size, self.output_size
+            return (
+                model,
+                loss_recorder,
+                model_tracker,
+                self.input_size,
+                self.output_size,
+            )
 
     class TiDEConfig:
         def __init__(self):
-            # Optuna optimized parameters (Trial 13, Val MAE: 0.0113)
-            self.input_size = 60  # input_chunk_length
-            self.output_size = 3  # output_chunk_length
+
+            self.input_size = 60  
+            self.output_size = 3  
             self.learning_rate = 0.00021192213100293766
             self.hidden_size = 512
             self.num_encoder_layers = 3
             self.num_decoder_layers = 2
             self.dropout = 0.2
-            # Config parameters
+
             self.patience = Config.PATIENCE
             self.min_delta = Config.MIN_DELTA
             self.scheduler_factor = Config.SCHEDULER_FACTOR
@@ -186,7 +197,7 @@ class Models:
             }
             encoders = {
                 "datetime_attribute": {"future": ["month", "day", "dayofweek"]},
-                "transformer": Scaler()
+                "transformer": Scaler(),
             }
             model = TiDEModel(
                 input_chunk_length=self.input_size,
@@ -210,18 +221,24 @@ class Models:
                 },
                 pl_trainer_kwargs=pl_trainer_kwargs,
             )
-            
+
             # Set the model reference in the loss recorder so it can save best models
             loss_recorder.set_darts_model(model)
 
-            return model, loss_recorder, model_tracker, self.input_size, self.output_size
+            return (
+                model,
+                loss_recorder,
+                model_tracker,
+                self.input_size,
+                self.output_size,
+            )
 
     class LinearRegressionConfig:
         def __init__(self):
-            # Optuna optimized parameters (Trial 10, Val MAE: 0.0095)
+
             self.input_size = 10  # lags
             self.output_size = 3  # output_chunk_length
-            # Config parameters
+
             self.log_dir = Config.LOG_DIR
             self.model_name = Config.MODEL_NAME
             self.seed = Config.SEED
@@ -230,7 +247,9 @@ class Models:
             """Setup the Linear Regression model with static covariates support."""
             from darts.models import LinearRegressionModel
 
-            model_tracker = ModelTracker("linear_regression", self.log_dir, Config.CHECKPOINT_DIR)
+            model_tracker = ModelTracker(
+                "linear_regression", self.log_dir, Config.CHECKPOINT_DIR
+            )
             model = LinearRegressionModel(
                 lags=self.input_size,
                 output_chunk_length=self.output_size,
@@ -246,4 +265,10 @@ class Models:
 
             loss_recorder = LinearLossRecorder()
 
-            return model, loss_recorder, model_tracker, self.input_size, self.output_size
+            return (
+                model,
+                loss_recorder,
+                model_tracker,
+                self.input_size,
+                self.output_size,
+            )

@@ -37,4 +37,3 @@ def login() -> LoginResponse:
     except Exception as e:
         raise Exception(f"Login failed: {e}")
     return user
-
