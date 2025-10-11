@@ -14,7 +14,11 @@ from train_model.data_processing import load_and_preprocess_data
 
 from .model_loading import load_model_from_checkpoint
 from .metrics import evaluate_single_model
-from .ensemble import create_simple_ensemble_predictions, calculate_ensemble_metrics, evaluate_arima_model
+from .ensemble import (
+    create_simple_ensemble_predictions,
+    calculate_ensemble_metrics,
+    evaluate_arima_model,
+)
 from .visualization import (
     create_comparison_table,
     create_metrics_plot,
@@ -100,11 +104,7 @@ def evaluate_models():
             results = evaluate_single_model(
                 model_name=model_name,
                 model=model_info["model"],
-                train_series=train_series,
-                val_series=val_series,
                 test_series=test_series,
-                train_static_cov=train_static_cov,
-                val_static_cov=val_static_cov,
                 test_static_cov=test_static_cov,
                 input_size=model_info["input_size"],
                 output_size=model_info["output_size"],
@@ -200,21 +200,19 @@ def evaluate_models():
 
     if ensemble_results:
         all_results["ensemble"] = ensemble_results
-    
 
     logger.info("\nEvaluating ARIMA model on the first test series...")
     arima_results = evaluate_arima_model(
         test_series=test_series,
         input_size=max_input_size,
         output_size=max_output_size,
-        extended_output_size=extended_output_size
+        extended_output_size=extended_output_size,
     )
-    
+
     if arima_results:
         all_results["arima"] = arima_results
 
     comparison_df = create_comparison_table(all_results)
-
 
     create_metrics_plot(all_results, comparison_df)
     create_predictions_plot(all_results, extended_output_size)

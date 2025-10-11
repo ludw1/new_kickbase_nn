@@ -162,8 +162,6 @@ class LossRecorder(Callback):
         self.darts_model = darts_model
 
 
-
-
 def setup_directories():
     """Setup checkpoint and log directories."""
     os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)

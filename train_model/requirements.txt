@@ -11,3 +11,6 @@ optuna-dashboard>=0.15.0
 plotly>=5.18.0
 kaleido>=0.2.1
 optuna==4.5.0
+
+# Statsforecast needed for AutoARIMA
+statsforecast==2.0.2

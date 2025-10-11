@@ -26,9 +26,7 @@ def transform_data(
         market_values = metrics.get("market_value", {}).get("it", [])
         if market_values:
             first_date = market_values[0].get("dt", first_date)
-            player_values.extend(
-                point.get("mv") for point in market_values
-            )
+            player_values.extend(point.get("mv") for point in market_values)
         if len(player_values) == 0:
             continue
         # Extract static covariates

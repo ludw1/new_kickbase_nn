@@ -5,10 +5,8 @@ Contains functions for calculating various metrics and evaluating
 model performance on test datasets.
 """
 
-import os
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 from darts.metrics import mae, rmse, mape, smape
 from typing import List, Dict, Any, Tuple
 from config import TrainingConfig as Config
@@ -74,11 +72,7 @@ def evaluate_model(
 def evaluate_single_model(
     model_name: str,
     model: Any,
-    train_series: List,
-    val_series: List,
     test_series: List,
-    train_static_cov: List,
-    val_static_cov: List,
     test_static_cov: List,
     input_size: int,
     output_size: int,
@@ -89,11 +83,7 @@ def evaluate_single_model(
     Args:
         model_name: Name of the model
         model: Trained model instance
-        train_series: Training time series
-        val_series: Validation time series
         test_series: Test time series
-        train_static_cov: Training static covariates
-        val_static_cov: Validation static covariates
         test_static_cov: Test static covariates
         input_size: Input size used by the model
         output_size: Original trained output size

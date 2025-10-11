@@ -38,3 +38,7 @@ if __name__ == "__main__":
         from evaluate_model.eval import evaluate_models
 
         evaluate_models()
+    elif PipelineConfig.mode == "inference":
+        from inference_pipeline.pipeline import run_inference_pipeline
+
+        asyncio.run(run_inference_pipeline())

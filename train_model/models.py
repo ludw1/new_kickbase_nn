@@ -17,7 +17,7 @@ class Models:
 
     class NHiTSModelConfig:
         def __init__(self):
-            # Optuna optimized parameters 
+            # Optuna optimized parameters
             self.input_size = 10  # input_chunk_length
             self.output_size = 3  # output_chunk_length
             self.learning_rate = 0.00023384895140376912
@@ -90,8 +90,8 @@ class Models:
 
     class NLinearConfig:
         def __init__(self):
-            self.input_size = 10 
-            self.output_size = 3  
+            self.input_size = 10
+            self.output_size = 3
             self.learning_rate = 0.0007898138167929168
             self.shared_weights = True
             self.const_init = True
@@ -157,9 +157,8 @@ class Models:
 
     class TiDEConfig:
         def __init__(self):
-
-            self.input_size = 60  
-            self.output_size = 3  
+            self.input_size = 60
+            self.output_size = 3
             self.learning_rate = 0.00021192213100293766
             self.hidden_size = 512
             self.num_encoder_layers = 3
@@ -235,7 +234,6 @@ class Models:
 
     class LinearRegressionConfig:
         def __init__(self):
-
             self.input_size = 10  # lags
             self.output_size = 3  # output_chunk_length
 

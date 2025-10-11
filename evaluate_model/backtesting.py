@@ -44,7 +44,6 @@ def run_backtests(
     else:
         test_series_with_cov = test_series_list
 
-
     all_mae = []
     all_rmse = []
     all_mape = []

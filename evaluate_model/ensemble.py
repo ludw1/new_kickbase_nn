@@ -9,7 +9,7 @@ import logging
 import numpy as np
 from darts import TimeSeries
 from darts.metrics import mae, rmse, mape, smape
-from darts.models import ARIMA
+from darts.models import AutoARIMA
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -162,9 +162,6 @@ def evaluate_arima_model(
     input_size: int,
     output_size: int,
     extended_output_size: int,
-    p: int = 5,
-    d: int = 1,
-    q: int = 0
 ) -> Dict[str, Any]:
     """Evaluate ARIMA model on a single time series (the one used for plotting).
     
@@ -175,11 +172,7 @@ def evaluate_arima_model(
         test_series: List of test time series
         input_size: Input size (history to use)
         output_size: Standard output size
-        extended_output_size: Extended output size
-        p: AR order for ARIMA
-        d: Differencing order for ARIMA
-        q: MA order for ARIMA
-        
+        extended_output_size: Extended output size        
     Returns:
         Dictionary with ARIMA evaluation metrics
     """
@@ -210,8 +203,8 @@ def evaluate_arima_model(
     
     try:
         # Standard prediction
-        logger.info(f"Training ARIMA({p},{d},{q}) for standard prediction...")
-        arima_model_standard = ARIMA(p=p, d=d, q=q)
+        logger.info("Training AutoARIMA for standard prediction...")
+        arima_model_standard = AutoARIMA()
         arima_model_standard.fit(train_data_standard)
         pred_standard = arima_model_standard.predict(n=output_size)
         
@@ -229,8 +222,8 @@ def evaluate_arima_model(
         
         # Extended prediction
         if train_data_extended is not None:
-            logger.info(f"Training ARIMA({p},{d},{q}) for extended prediction...")
-            arima_model_extended = ARIMA(p=p, d=d, q=q)
+            logger.info("Training AutoARIMA for extended prediction...")
+            arima_model_extended = AutoARIMA()
             arima_model_extended.fit(train_data_extended)
             pred_extended = arima_model_extended.predict(n=extended_output_size)
             

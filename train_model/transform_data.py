@@ -10,12 +10,12 @@ def transform_data(input_file: str) -> tuple[list[list[float]], list[dict], int]
     # Need to transform it into [[player1_values], [player2_values], ...] and static covariates
     transformed_data = []
     static_covariates = []
-    first_date = 19983  # Example Julian date for reference
+    first_date = 70000  # Example Julian date for reference in the far future
     for player, metrics in data.items():
         player_values = []
         market_values = metrics.get("market_value", {}).get("it", [])
         if market_values:
-            first_date = min(first_date, market_values[0].get("date", first_date))
+            first_date = min(first_date, market_values[0].get("dt", first_date))
             player_values.extend(
                 point.get("mv") for point in market_values if point.get("mv") != 0
             )

@@ -10,7 +10,7 @@ import os
 class PipelineConfig:
     """Configuration for the training pipeline."""
 
-    mode = "evaluate"  # Options: "get_data", "train", "optimize", "evaluate"
+    mode = "inference"  # Options: "get_data", "train", "optimize", "evaluate", "inference"
 
     # Data location - all data files and outputs will be saved here
     DATA_DIR = os.path.abspath(".")  # Current directory by default

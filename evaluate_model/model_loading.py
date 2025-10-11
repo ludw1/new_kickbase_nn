@@ -108,7 +108,6 @@ def load_model_from_checkpoint(
         logger.info("Loaded NLinear model from state dict and set to eval mode")
 
     elif model_name == "tide":
-
         model_config = Models.TiDEConfig()
         model, _, _, input_size, output_size = model_config.setup_model()
 
@@ -120,7 +119,6 @@ def load_model_from_checkpoint(
             input_size, output_size, with_static_covariates=True
         )
         model.fit(dummy_train, val_series=dummy_val, epochs=1, verbose=False)
-
 
         state_dict = torch.load(
             model_path, map_location=torch.device("cpu"), weights_only=False
@@ -158,7 +156,6 @@ def load_model_from_checkpoint(
             logger.warning(
                 "TiDE will use encoders fitted on dummy data - performance may be degraded!"
             )
-
 
         model.model.eval()
         logger.info("Loaded TiDE model from state dict and set to eval mode")

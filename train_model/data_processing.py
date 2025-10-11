@@ -13,6 +13,7 @@ from sklearn.preprocessing import RobustScaler
 from train_model.transform_data import transform_data
 from config import TrainingConfig as Config, PipelineConfig
 from datetime import datetime, timedelta
+import joblib
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,6 @@ def load_and_preprocess_data(
             start=julian_to_date(first_date), periods=len(values), freq="D"
         )
 
-
         series = TimeSeries.from_times_and_values(times=time_index, values=values)
 
         return series
@@ -147,7 +147,6 @@ def load_and_preprocess_data(
         f"Processed counts: {len(train_series_unscaled)} train, {len(val_series_unscaled)} val, {len(test_series_unscaled)} test series"
     )
 
-
     # Analyze and handle outliers
     all_train_values = np.concatenate([s.values() for s in train_series_unscaled])
 
@@ -175,7 +174,7 @@ def load_and_preprocess_data(
     scaler = RobustScaler()
     all_train_clipped = np.concatenate([s.values() for s in train_series_clipped])
     scaler.fit(all_train_clipped)
-
+    joblib.dump(scaler, Config.CHECKPOINT_DIR + "/scaler.pkl")
     logger.info(
         f"After clipping - Mean: {np.mean(all_train_clipped):.4f}, Std: {np.std(all_train_clipped):.4f}"
     )

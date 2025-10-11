@@ -46,3 +46,20 @@ This repo is a remake of [kickbase_nn](https://github.com/ludw1/kickbase_nn) wit
     python evaluation.py
     ```
 
+## Model Performance Comparison
+
+| Model | MAE (Standard) | SMAPE (Standard) | MAE (Extended) | SMAPE (Extended) | MAE Degradation (%) |
+|-------|----------------|------------------|----------------|------------------|---------------------|
+| ARIMA | 0.0012 | 0.2677 | 0.0022 | 0.4935 | 76.9261 |
+| NHITS | 0.0089 | 6.4764 | 0.0166 | 12.8762 | 86.8777 |
+| ENSEMBLE | 0.0097 | 6.6570 | 0.0185 | 14.3367 | 89.6850 |
+| LINEAR_REGRESSION | 0.0098 | 7.5471 | 0.0173 | 14.9814 | 75.9944 |
+| NLINEAR | 0.0106 | 7.8761 | 0.0186 | 15.5396 | 75.5955 |
+| TIDE | 0.0136 | 6.9871 | 0.0258 | 16.4709 | 89.4240 |
+
+*Note: The above table summarizes the performance of various models on testing data. "Standard" refers to the original dataset, "Extended" extends the original prediction time window by a factor of 2 (the standard output size is 3 for all models). MAE Degradation indicates the percentage increase in MAE from Standard to Extended datasets.*
+
+See also these graphs for a visual comparison of the models:
+![Model Comparison](figs/model_comparison_plot_metrics.png)
+![Model Predictions](figs/model_comparison_plot_predictions.png)
+While not conclusive, this result indicates that statistical models like ARIMA may outperform more complex neural networks for this specific time series analysis. Since the data is quite limited however, this conclusion may change with more data.
