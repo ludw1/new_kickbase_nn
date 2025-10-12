@@ -398,16 +398,13 @@ def save_updated_data_to_json(
             )
 
     compressed_path = output_file + ".gz"
-    try:
-        with gzip.open(compressed_path, "wt", encoding="utf-8") as f:
-            json.dump(player_dict, f, indent=2, default=str)
-        logger.info(f"Saved compressed data to {compressed_path}")
-    except Exception as e:
-        logger.error(f"Failed to save compressed data to {compressed_path}: {e}")
-        # Fallback to uncompressed
-        with open(output_file, "w") as f:
-            json.dump(player_dict, f, indent=2, default=str)
-        logger.info(f"Fallback: Saved uncompressed data to {output_file}")
+    with gzip.open(compressed_path, "wt", encoding="utf-8") as f:
+        json.dump(player_dict, f, indent=2, default=str)
+    logger.info(f"Saved compressed data to {compressed_path}")
+    # Fallback to uncompressed
+    with open(output_file, "w") as f:
+        json.dump(player_dict, f, indent=2, default=str)
+    logger.info(f"Fallback: Saved uncompressed data to {output_file}")
 
 
 async def run_inference_pipeline(append_mode: bool = True):
