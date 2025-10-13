@@ -19,21 +19,25 @@ logger = logging.getLogger(__name__)
 
 
 def julian_to_date(julian_date: int) -> str:
-    """Convert a Julian date to a standard date format (YYYY-MM-DD)."""
+    """Convert a Julian date to a standard date format (DD.MM.YYYY)."""
     reference_date = datetime(1970, 1, 1)
     converted_date = reference_date + timedelta(days=julian_date)
     return converted_date.strftime("%d.%m.%Y")
 
+def create_date_range(start_date: str, length: int) -> list[str]:
+    """Create a list of date strings starting from start_date for a given length."""
+    start_dt = datetime.strptime(start_date, "%d.%m.%Y")
+    return [
+        (start_dt + timedelta(days=i)).strftime("%m.%d.%Y") for i in range(length)
+    ]
 
 def process_series(player_values, first_date):
     values = np.array(player_values)
 
     # Create a datetime index starting from a reference date
     # Assuming daily data
-    time_index = pd.date_range(
-        start=julian_to_date(first_date), periods=len(values), freq="D"
-    )
-
+    temp = create_date_range(julian_to_date(first_date), len(values))
+    time_index = pd.DatetimeIndex(data=temp, freq="D")
     series = TimeSeries.from_times_and_values(times=time_index, values=values)
 
     return series
@@ -234,7 +238,7 @@ def load_and_update_inference_results(
         new_first_date = series.start_time()
         if not isinstance(new_first_date, int):
             new_first_date_str = new_first_date.strftime(
-                "%m.%d.%Y"
+                "%d.%m.%Y"
             )  # For some reason the date format changes
         else:
             new_first_date_str = julian_to_date(new_first_date)
