@@ -3,7 +3,8 @@ This repo is a remake of [kickbase_nn](https://github.com/ludw1/kickbase_nn) wit
 - **Updated API Integration**: The code now works with the latest Kickbase API, ensuring compatibility.
 - **Enhanced Data Handling**: Improved data fetching and processing for better performance.
 - **Refined Model Training and more models**: I have learned a lot about time series prediction and neural networks since I wrote the original code. This version includes better model architectures and training techniques. It also includes more models to compare against.
-
+## Example
+See [my website](http://ludwig-kraemer.org/kickbase-prediction) for a demonstration of the inference output.
 ## Getting Started
 1. **Clone the Repository**:
    ```bash
