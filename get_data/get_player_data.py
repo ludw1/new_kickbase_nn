@@ -3,7 +3,7 @@ import aiohttp
 import asyncio
 import json
 import os
-from get_data.models import TeamResponse, PlayerMarketValueResponse
+from get_data.models import TeamResponse, PlayerMarketValueResponse, PlayerInfo, PlayerPerformanceEntry
 from get_data.auth import login
 from config import PipelineConfig
 
@@ -102,26 +102,116 @@ class GetPlayerData:
             logger.info(f"Error fetching data for player {player_id}: {e}")
         return player_data, player_id
 
+    async def get_player_info(self, player_id: str) -> tuple[PlayerInfo, str]:
+        """Get player information.
+
+        Args:
+            player_id (str): The ID of the player.
+
+        Returns:
+            tuple[PlayerInfo, str]: A tuple containing the player info response and player ID.
+        """
+        url = f"https://api.kickbase.com/v4/competitions/1/players/{player_id}"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Cookie": f"kkstrauth={self.token};",
+        }
+        player_info = PlayerInfo(i=0, fn="", ln="", shn=0, tid=0, tn="", st=0, stl=[], pos=0, iposl=False, tp=0, ap=0, g=0, a=0)
+        logger.info(f"Fetching info for player {player_id}")
+        try:
+            async with self.session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                logger.info(f"Info for player {player_id} fetched successfully.")
+                player_info = PlayerInfo(**await response.json())
+        except Exception as e:
+            logger.info(f"Error fetching info for player {player_id}: {e}")
+        return player_info, player_id
+
+    async def get_player_performance(self, player_id: str) -> tuple[PlayerPerformanceEntry, str]:
+        """Get player performance history.
+
+        Args:
+            player_id (str): The ID of the player.
+
+        Returns:
+            tuple[PlayerPerformanceEntry, str]: A tuple containing the player performance response and player ID.
+        """
+        url = f"https://api.kickbase.com/v4/competitions/1/players/{player_id}/performance"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Cookie": f"kkstrauth={self.token};",
+        }
+        player_performance = PlayerPerformanceEntry(it=[])
+        logger.info(f"Fetching performance for player {player_id}")
+        try:
+            async with self.session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                logger.info(f"Performance for player {player_id} fetched successfully.")
+                player_performance = PlayerPerformanceEntry(**await response.json())
+        except Exception as e:
+            logger.info(f"Error fetching performance for player {player_id}: {e}")
+        return player_performance, player_id
+
     async def get_all_player_data(
         self, teams: list[TeamResponse]
-    ) -> dict[str, PlayerMarketValueResponse]:
-        """Get player history for all players in a team.
+    ) -> dict[str, dict]:
+        """Get player data for all players in a team.
 
         Args:
             teams (list[TeamResponse]): A list of team responses containing player data.
 
         Returns:
-            dict[str, PlayerMarketValueResponse]: A dictionary of player market value responses, keyed to player id.
+            dict[str, dict]: A dictionary of player data containing market value, info, and performance, keyed to player id.
         """
         all_player_data = {}
-        tasks = [self.get_player_data(player.i) for team in teams for player in team.it]
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        for response in responses:
+        all_player_ids = [player.i for team in teams for player in team.it]
+
+        # Create tasks for all three types of data
+        market_tasks = [self.get_player_data(player_id) for player_id in all_player_ids]
+        info_tasks = [self.get_player_info(player_id) for player_id in all_player_ids]
+        performance_tasks = [self.get_player_performance(player_id) for player_id in all_player_ids]
+
+        # Execute all tasks
+        market_responses = await asyncio.gather(*market_tasks, return_exceptions=True)
+        info_responses = await asyncio.gather(*info_tasks, return_exceptions=True)
+        performance_responses = await asyncio.gather(*performance_tasks, return_exceptions=True)
+
+        # Process market value responses
+        market_data = {}
+        for response in market_responses:
             if isinstance(response, BaseException):
                 continue
             player_market_value, player_id = response
             if player_market_value.it:
-                all_player_data[player_id] = player_market_value
+                market_data[player_id] = player_market_value
+
+        # Process info responses
+        info_data = {}
+        for response in info_responses:
+            if isinstance(response, BaseException):
+                continue
+            player_info, player_id = response
+            info_data[player_id] = player_info
+
+        # Process performance responses
+        performance_data = {}
+        for response in performance_responses:
+            if isinstance(response, BaseException):
+                continue
+            player_performance, player_id = response
+            if player_performance.it:
+                performance_data[player_id] = player_performance
+
+        # Combine all data
+        for player_id in all_player_ids:
+            all_player_data[player_id] = {
+                'market_value': market_data.get(player_id),
+                'info': info_data.get(player_id),
+                'performance': performance_data.get(player_id)
+            }
+
         return all_player_data
 
 
@@ -158,12 +248,14 @@ async def get_api_data():
 
         all_player_data = await player_data.get_all_player_data(result)
         logger.info(f"Total players fetched: {len(all_player_data)}")
-        for player_id, player_mv in all_player_data.items():
+        for player_id, player_data_dict in all_player_data.items():
             file_player_data[
                 player_data_lookup.get(player_id, {}).get("name", "") + "_" + player_id
             ] = {  # Use name and id to handle duplicate names
                 "player_info": player_data_lookup.get(player_id, {}),
-                "market_value": player_mv.model_dump(),
+                "market_value": player_data_dict['market_value'].model_dump() if player_data_dict['market_value'] else None,
+                "info": player_data_dict['info'].model_dump() if player_data_dict['info'] else None,
+                "performance": player_data_dict['performance'].model_dump() if player_data_dict['performance'] else None,
             }
         with open(PipelineConfig.DATA_FILE, "w") as f:
             json.dump(file_player_data, f, indent=4)
