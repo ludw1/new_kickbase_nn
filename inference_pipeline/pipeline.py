@@ -13,7 +13,7 @@ import gzip
 import joblib
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from typing import Tuple, Any
+from typing import Tuple, Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,107 @@ def process_series(player_values, first_date):
     series = TimeSeries.from_times_and_values(times=time_index, values=values)
 
     return series
+
+
+def extract_performance_data(performance_data: dict) -> List[Dict]:
+    """Extract and optimize performance data from API response.
+
+    Args:
+        performance_data: Performance data from API
+
+    Returns:
+        List of performance entries with date, points, and minutes played
+    """
+    if not performance_data or not performance_data.get('it'):
+        return []
+
+    performances = []
+    for season in performance_data['it']:
+        for match in season.get('ph', []):
+            # Extract only essential fields
+            match_date = match.get('md', '')
+            points = match.get('p', 0)
+            minutes_played = match.get('mp', '0\'')
+            status = match.get('st', 0)
+
+            # Convert date format from ISO to YYYY-MM-DD
+            if match_date:
+                try:
+                    # Parse ISO date and format
+                    date_obj = datetime.fromisoformat(match_date.replace('Z', '+00:00'))
+                    formatted_date = date_obj.strftime('%Y-%m-%d')
+                except Exception as e:
+                    # Fallback to first 10 characters if parsing fails
+                    logger.warning(f"Date parsing failed for {match_date}: {e}")
+                    formatted_date = match_date[:10]
+            else:
+                formatted_date = ''
+
+            # Clean minutes played (remove ' character)
+            if isinstance(minutes_played, str):
+                minutes_clean = minutes_played.replace("'", "")
+                try:
+                    minutes_int = int(minutes_clean)
+                except Exception as e:
+                    logger.warning(f"Minutes parsing failed for {minutes_clean}: {e}")
+                    minutes_int = 0
+            else:
+                minutes_int = int(minutes_played) if minutes_played else 0
+
+            performances.append({
+                'date': formatted_date,
+                'points': points if points is not None else 0,
+                'minutes': minutes_int,
+                'status': status if status is not None else 0
+            })
+
+    # Sort by date and keep only last 100 performances to optimize file size
+    performances.sort(key=lambda x: x['date'], reverse=True)
+    return performances[:100]
+
+
+def extract_player_metadata(player_info: dict, api_info: dict) -> Dict:
+    """Extract essential player metadata from API responses.
+
+    Args:
+        player_info: Basic player info from teams data
+        api_info: Detailed player info from API
+
+    Returns:
+        Dictionary with essential player metadata
+    """
+    if not api_info:
+        # Fallback to basic info if API data not available
+        return {
+            'full_name': player_info.get('name', ''),
+            'team': player_info.get('team_name', ''),
+            'position': player_info.get('pos', 0),
+            'status': 0,
+            'status_text': 'Unknown',
+            'total_points': 0,
+            'avg_points': 0,
+            'goals': 0,
+            'assists': 0
+        }
+
+    # Construct full name
+    first_name = api_info.get('fn', '') or ''
+    last_name = api_info.get('ln', '') or ''
+    full_name = f"{first_name} {last_name}".strip()
+    if not full_name:
+        full_name = player_info.get('name', '')
+
+    return {
+        'full_name': full_name,
+        'team': api_info.get('tn', player_info.get('team_name', '')),
+        'position': api_info.get('pos', player_info.get('pos', 0)),
+        'status': api_info.get('st', 0),
+        'status_text': api_info.get('stxt', 'Fit' if api_info.get('st', 0) == 0 else 'Injured'),
+        'total_points': api_info.get('tp', 0) or 0,
+        'avg_points': api_info.get('ap', 0) or 0,
+        'goals': api_info.get('g', 0) or 0,
+        'assists': api_info.get('a', 0) or 0
+    }
 
 
 def load_models_for_inference() -> dict[str, dict]:
@@ -90,8 +191,12 @@ def load_models_for_inference() -> dict[str, dict]:
     return models_dict
 
 
-def load_data_for_inference() -> Tuple[dict[str, tuple[TimeSeries, dict]], Any]:
+def load_data_for_inference() -> Tuple[dict[str, tuple[TimeSeries, dict]], Any, dict]:
     """Load and preprocess data for inference."""
+    # Load raw player data for enhanced info extraction
+    with open(PipelineConfig.DATA_FILE, "r") as f:
+        raw_player_data = json.load(f)
+
     # Load and preprocess data
     raw_data = transform_data(PipelineConfig.DATA_FILE)
     transformed_data = {}
@@ -113,7 +218,7 @@ def load_data_for_inference() -> Tuple[dict[str, tuple[TimeSeries, dict]], Any]:
         player: (scale_series(ts, scaler), cov)
         for player, (ts, cov) in transformed_data.items()
     }
-    return transformed_data, scaler
+    return transformed_data, scaler, raw_player_data
 
 
 def inference_models(
@@ -217,13 +322,20 @@ def load_and_update_inference_results(
         with open(output_file, "r") as f:
             existing_data = json.load(f)
 
-        # Keep only original data and first_date, remove predictions
+        # Keep core data and enhanced info, remove only predictions
         for player, data in existing_data.items():
             if "original" in data and "first_date" in data:
                 player_dict[player] = {
                     "original": data["original"],
                     "first_date": data["first_date"],
                 }
+
+                # Preserve enhanced player information if it exists
+                if "player_meta" in data:
+                    player_dict[player]["player_meta"] = data["player_meta"]
+                if "performance" in data:
+                    player_dict[player]["performance"] = data["performance"]
+
                 logger.debug(
                     f"Loaded existing data for {player}: {len(data['original'])} points"
                 )
@@ -383,6 +495,7 @@ def save_updated_data_to_json(
     predictions: dict[str, dict[str, TimeSeries]],
     scaler,
     output_file: str,
+    raw_player_data: dict = {},
 ):
     """Save updated player data with new predictions to JSON file.
 
@@ -391,6 +504,7 @@ def save_updated_data_to_json(
         predictions: New predictions from models
         scaler: Fitted scaler for inverse transformation
         output_file: Path to save the JSON file
+        raw_player_data: Raw player data with enhanced info from API
     """
     # Add predictions to the player dictionary
     for model_name, model_preds in predictions.items():
@@ -400,6 +514,36 @@ def save_updated_data_to_json(
             player_dict[player][model_name] = (
                 scaler.inverse_transform(series.values()).flatten().tolist()
             )
+
+    # Add enhanced player information if available
+    if raw_player_data:
+        for player_key, player_data in player_dict.items():
+            # Extract player ID from the key (format: "PlayerName_ID")
+            player_id = player_key.split("_")[-1] if "_" in player_key else player_key
+
+            # Get corresponding data from raw player data
+            raw_data_entry = None
+            for raw_key, raw_value in raw_player_data.items():
+                # Match by ID - the raw data key might also have "_ID" format
+                raw_key_id = raw_key.split("_")[-1] if "_" in raw_key else raw_key
+                if raw_key_id == player_id:
+                    raw_data_entry = raw_value
+                    break
+
+            if raw_data_entry:
+                # Extract and add player metadata
+                player_info = raw_data_entry.get('player_info', {})
+                api_info = raw_data_entry.get('info', {})
+                performance_data = raw_data_entry.get('performance', {})
+
+                metadata = extract_player_metadata(player_info, api_info)
+                performance = extract_performance_data(performance_data)
+
+                # Only add if we have meaningful data
+                if metadata.get('full_name') or performance:
+                    player_data['player_meta'] = metadata
+                    if performance:
+                        player_data['performance'] = performance
 
     compressed_path = output_file + ".gz"
     with gzip.open(compressed_path, "wt", encoding="utf-8") as f:
@@ -421,7 +565,7 @@ async def run_inference_pipeline(append_mode: bool = True):
     setup_directories()
     await get_api_data()
     model_dict = load_models_for_inference()
-    scaled_data, scaler = load_data_for_inference()
+    scaled_data, scaler, raw_player_data = load_data_for_inference()
     if not model_dict or not scaled_data:
         logger.error("Inference pipeline aborted due to previous errors.")
         return
@@ -438,8 +582,8 @@ async def run_inference_pipeline(append_mode: bool = True):
         # Run predictions
         predictions = inference_models(scaled_data, model_dict)
 
-        # Save with updated data
-        save_updated_data_to_json(player_dict, predictions, scaler, output_file)
+        # Save with updated data and enhanced player info
+        save_updated_data_to_json(player_dict, predictions, scaler, output_file, raw_player_data)
 
     else:
         # Legacy mode - overwrite everything
